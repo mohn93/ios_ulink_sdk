@@ -1,0 +1,397 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		1A2B3C4D5E6F7890ABCD1244 /* DeviceInfoHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F7890ABCD123A /* DeviceInfoHelper.swift */; };
+		1A2B3C4D5E6F7890ABCD1245 /* DeviceInfoUtils.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F7890ABCD123B /* DeviceInfoUtils.swift */; };
+		1A2B3C4D5E6F7890ABCD1246 /* ULinkConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F7890ABCD123C /* ULinkConfig.swift */; };
+		1A2B3C4D5E6F7890ABCD1247 /* ULinkInstallation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F7890ABCD123D /* ULinkInstallation.swift */; };
+		1A2B3C4D5E6F7890ABCD1248 /* ULinkInstallationResponse.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F7890ABCD123E /* ULinkInstallationResponse.swift */; };
+		1A2B3C4D5E6F7890ABCD1249 /* ULinkParameters.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F7890ABCD123F /* ULinkParameters.swift */; };
+		1A2B3C4D5E6F7890ABCD124A /* ULinkResolvedData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F7890ABCD1240 /* ULinkResolvedData.swift */; };
+		1A2B3C4D5E6F7890ABCD124B /* ULinkResponse.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F7890ABCD1241 /* ULinkResponse.swift */; };
+		1A2B3C4D5E6F7890ABCD124C /* ULinkSessionResponse.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F7890ABCD1242 /* ULinkSessionResponse.swift */; };
+		1A2B3C4D5E6F7890ABCD124D /* SessionState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F7890ABCD1243 /* SessionState.swift */; };
+		8C73DA1A2E7CA32000090D9F /* ULink.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C73DA192E7CA32000090D9F /* ULink.swift */; };
+		8C73DA1C2E7CA32000090D9F /* HTTPClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C73DA1B2E7CA32000090D9F /* HTTPClient.swift */; };
+		8C73DA1E2E7CA32000090D9F /* ULinkError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C73DA1D2E7CA32000090D9F /* ULinkError.swift */; };
+		8C73DA202E7CA32000090D9F /* ULinkSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C73DA1F2E7CA32000090D9F /* ULinkSession.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		1A2B3C4D5E6F7890ABCD123A /* DeviceInfoHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DeviceInfoHelper.swift; path = ULinkSDK/Sources/ULinkSDK/DeviceInfoHelper.swift; sourceTree = SOURCE_ROOT; };
+		1A2B3C4D5E6F7890ABCD123B /* DeviceInfoUtils.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DeviceInfoUtils.swift; path = ULinkSDK/Sources/ULinkSDK/DeviceInfoUtils.swift; sourceTree = SOURCE_ROOT; };
+		1A2B3C4D5E6F7890ABCD123C /* ULinkConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ULinkConfig.swift; path = ULinkSDK/Sources/ULinkSDK/ULinkConfig.swift; sourceTree = SOURCE_ROOT; };
+		1A2B3C4D5E6F7890ABCD123D /* ULinkInstallation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ULinkInstallation.swift; path = ULinkSDK/Sources/ULinkSDK/ULinkInstallation.swift; sourceTree = SOURCE_ROOT; };
+		1A2B3C4D5E6F7890ABCD123E /* ULinkInstallationResponse.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ULinkInstallationResponse.swift; path = ULinkSDK/Sources/ULinkSDK/ULinkInstallationResponse.swift; sourceTree = SOURCE_ROOT; };
+		1A2B3C4D5E6F7890ABCD123F /* ULinkParameters.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ULinkParameters.swift; path = ULinkSDK/Sources/ULinkSDK/ULinkParameters.swift; sourceTree = SOURCE_ROOT; };
+		1A2B3C4D5E6F7890ABCD1240 /* ULinkResolvedData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ULinkResolvedData.swift; path = ULinkSDK/Sources/ULinkSDK/ULinkResolvedData.swift; sourceTree = SOURCE_ROOT; };
+		1A2B3C4D5E6F7890ABCD1241 /* ULinkResponse.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ULinkResponse.swift; path = ULinkSDK/Sources/ULinkSDK/ULinkResponse.swift; sourceTree = SOURCE_ROOT; };
+		1A2B3C4D5E6F7890ABCD1242 /* ULinkSessionResponse.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ULinkSessionResponse.swift; path = ULinkSDK/Sources/ULinkSDK/ULinkSessionResponse.swift; sourceTree = SOURCE_ROOT; };
+		1A2B3C4D5E6F7890ABCD1243 /* SessionState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SessionState.swift; path = ULinkSDK/Sources/ULinkSDK/Models/SessionState.swift; sourceTree = SOURCE_ROOT; };
+		8C73DA0F2E7CA32000090D9F /* ULinkSDK.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = ULinkSDK.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		8C73DA122E7CA32000090D9F /* ULinkSDK.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ULinkSDK.h; sourceTree = "<group>"; };
+		8C73DA192E7CA32000090D9F /* ULink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ULink.swift; path = ULinkSDK/Sources/ULinkSDK/ULink.swift; sourceTree = SOURCE_ROOT; };
+		8C73DA1B2E7CA32000090D9F /* HTTPClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HTTPClient.swift; path = ULinkSDK/Sources/ULinkSDK/HTTPClient.swift; sourceTree = SOURCE_ROOT; };
+		8C73DA1D2E7CA32000090D9F /* ULinkError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ULinkError.swift; path = ULinkSDK/Sources/ULinkSDK/ULinkError.swift; sourceTree = SOURCE_ROOT; };
+		8C73DA1F2E7CA32000090D9F /* ULinkSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ULinkSession.swift; path = ULinkSDK/Sources/ULinkSDK/ULinkSession.swift; sourceTree = SOURCE_ROOT; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		8C73DA0C2E7CA32000090D9F /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		8C73DA052E7CA32000090D9F = {
+			isa = PBXGroup;
+			children = (
+				8C73DA112E7CA32000090D9F /* ULinkSDK */,
+				8C73DA102E7CA32000090D9F /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		8C73DA102E7CA32000090D9F /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				8C73DA0F2E7CA32000090D9F /* ULinkSDK.framework */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		8C73DA112E7CA32000090D9F /* ULinkSDK */ = {
+			isa = PBXGroup;
+			children = (
+				8C73DA122E7CA32000090D9F /* ULinkSDK.h */,
+				8C73DA192E7CA32000090D9F /* ULink.swift */,
+				8C73DA1B2E7CA32000090D9F /* HTTPClient.swift */,
+				8C73DA1D2E7CA32000090D9F /* ULinkError.swift */,
+				8C73DA1F2E7CA32000090D9F /* ULinkSession.swift */,
+				1A2B3C4D5E6F7890ABCD123A /* DeviceInfoHelper.swift */,
+				1A2B3C4D5E6F7890ABCD123B /* DeviceInfoUtils.swift */,
+				1A2B3C4D5E6F7890ABCD123C /* ULinkConfig.swift */,
+				1A2B3C4D5E6F7890ABCD123D /* ULinkInstallation.swift */,
+				1A2B3C4D5E6F7890ABCD123E /* ULinkInstallationResponse.swift */,
+				1A2B3C4D5E6F7890ABCD123F /* ULinkParameters.swift */,
+				1A2B3C4D5E6F7890ABCD1240 /* ULinkResolvedData.swift */,
+				1A2B3C4D5E6F7890ABCD1241 /* ULinkResponse.swift */,
+				1A2B3C4D5E6F7890ABCD1242 /* ULinkSessionResponse.swift */,
+				1A2B3C4D5E6F7890ABCD1243 /* SessionState.swift */,
+			);
+			path = ULinkSDK;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXHeadersBuildPhase section */
+		8C73DA0D2E7CA32000090D9F /* Headers */ = {
+			isa = PBXHeadersBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXHeadersBuildPhase section */
+
+/* Begin PBXNativeTarget section */
+		8C73DA0E2E7CA32000090D9F /* ULinkSDK */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 8C73DA162E7CA32000090D9F /* Build configuration list for PBXNativeTarget "ULinkSDK" */;
+			buildPhases = (
+				8C73DA0A2E7CA32000090D9F /* Sources */,
+				8C73DA0C2E7CA32000090D9F /* Frameworks */,
+				8C73DA0D2E7CA32000090D9F /* Headers */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = ULinkSDK;
+			productName = ULinkSDK;
+			productReference = 8C73DA0F2E7CA32000090D9F /* ULinkSDK.framework */;
+			productType = "com.apple.product-type.framework";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		8C73DA062E7CA32000090D9F /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastUpgradeCheck = 1620;
+				TargetAttributes = {
+					8C73DA0E2E7CA32000090D9F = {
+						CreatedOnToolsVersion = 15.0;
+						LastSwiftMigration = 1500;
+					};
+				};
+			};
+			buildConfigurationList = 8C73DA092E7CA32000090D9F /* Build configuration list for PBXProject "ULinkSDK" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 8C73DA052E7CA32000090D9F;
+			productRefGroup = 8C73DA102E7CA32000090D9F /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				8C73DA0E2E7CA32000090D9F /* ULinkSDK */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		8C73DA0A2E7CA32000090D9F /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				8C73DA1A2E7CA32000090D9F /* ULink.swift in Sources */,
+				8C73DA1C2E7CA32000090D9F /* HTTPClient.swift in Sources */,
+				8C73DA1E2E7CA32000090D9F /* ULinkError.swift in Sources */,
+				8C73DA202E7CA32000090D9F /* ULinkSession.swift in Sources */,
+				1A2B3C4D5E6F7890ABCD1244 /* DeviceInfoHelper.swift in Sources */,
+				1A2B3C4D5E6F7890ABCD1245 /* DeviceInfoUtils.swift in Sources */,
+				1A2B3C4D5E6F7890ABCD1246 /* ULinkConfig.swift in Sources */,
+				1A2B3C4D5E6F7890ABCD1247 /* ULinkInstallation.swift in Sources */,
+				1A2B3C4D5E6F7890ABCD1248 /* ULinkInstallationResponse.swift in Sources */,
+				1A2B3C4D5E6F7890ABCD1249 /* ULinkParameters.swift in Sources */,
+				1A2B3C4D5E6F7890ABCD124A /* ULinkResolvedData.swift in Sources */,
+				1A2B3C4D5E6F7890ABCD124B /* ULinkResponse.swift in Sources */,
+				1A2B3C4D5E6F7890ABCD124C /* ULinkSessionResponse.swift in Sources */,
+				1A2B3C4D5E6F7890ABCD124D /* SessionState.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		8C73DA142E7CA32000090D9F /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASYNC_COMPILATION_ENABLED = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IOSAPPLICATIONFAMILY_1_SUPPORT_DONOTUSE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				VERSIONING_SYSTEM = "apple-generic";
+				VERSION_INFO_PREFIX = "";
+			};
+			name = Debug;
+		};
+		8C73DA152E7CA32000090D9F /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASYNC_COMPILATION_ENABLED = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IOSAPPLICATIONFAMILY_1_SUPPORT_DONOTUSE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				VALIDATE_PRODUCT = YES;
+				VERSIONING_SYSTEM = "apple-generic";
+				VERSION_INFO_PREFIX = "";
+			};
+			name = Release;
+		};
+		8C73DA172E7CA32000090D9F /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				ENABLE_MODULE_VERIFIER = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				IOSAPPLICATIONFAMILY_1_SUPPORT_DONOTUSE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				MODULE_VERIFIER_SUPPORTED_LANGUAGES = "objective-c objective-c++";
+				MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS = "gnu17 gnu++20";
+				PRODUCT_BUNDLE_IDENTIFIER = com.ulink.ULinkSDK;
+				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		8C73DA182E7CA32000090D9F /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				ENABLE_MODULE_VERIFIER = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				IOSAPPLICATIONFAMILY_1_SUPPORT_DONOTUSE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				MODULE_VERIFIER_SUPPORTED_LANGUAGES = "objective-c objective-c++";
+				MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS = "gnu17 gnu++20";
+				PRODUCT_BUNDLE_IDENTIFIER = com.ulink.ULinkSDK;
+				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		8C73DA092E7CA32000090D9F /* Build configuration list for PBXProject "ULinkSDK" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				8C73DA142E7CA32000090D9F /* Debug */,
+				8C73DA152E7CA32000090D9F /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		8C73DA162E7CA32000090D9F /* Build configuration list for PBXNativeTarget "ULinkSDK" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				8C73DA172E7CA32000090D9F /* Debug */,
+				8C73DA182E7CA32000090D9F /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 8C73DA062E7CA32000090D9F /* Project object */;
+}

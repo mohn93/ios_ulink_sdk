@@ -1,0 +1,382 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 63;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		3B8AB00AC357BC0B8AAC19AB /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04B1F7C6F30DFA11647FE068 /* ContentView.swift */; };
+		63AF766FD9E7459EFA4F9FDE /* ULinkSDKExampleApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0ECB7A2D0589942F91FF8E9 /* ULinkSDKExampleApp.swift */; };
+		8C638E842E828FF000B12A2A /* ULinkSDK in Frameworks */ = {isa = PBXBuildFile; productRef = 8C638E832E828FF000B12A2A /* ULinkSDK */; };
+		C67C92BD05E2ECA48CEE0419 /* ULinkTestViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D6BBC866BFD70D311A379A9C /* ULinkTestViewModel.swift */; };
+		E0D188322E9EF1D65DBA4E58 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F96B21E305F7EEED414032CD /* Assets.xcassets */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		04B1F7C6F30DFA11647FE068 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		3777C77968DECDEC9CA14462 /* ULinkSDK */ = {isa = PBXFileReference; lastKnownFileType = folder; name = ULinkSDK; path = ../ULinkSDK; sourceTree = SOURCE_ROOT; };
+		6EC54884E49D3961781DEBE4 /* ULinkSDKExample.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ULinkSDKExample.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		8C638E812E81662C00B12A2A /* ULinkSDKExample.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ULinkSDKExample.entitlements; sourceTree = "<group>"; };
+		A0ECB7A2D0589942F91FF8E9 /* ULinkSDKExampleApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ULinkSDKExampleApp.swift; sourceTree = "<group>"; };
+		A96EC5F9F6FB99AD18697F6E /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		D6BBC866BFD70D311A379A9C /* ULinkTestViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ULinkTestViewModel.swift; sourceTree = "<group>"; };
+		F96B21E305F7EEED414032CD /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		50D1C493D783F210807E6C60 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				8C638E842E828FF000B12A2A /* ULinkSDK in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		4023E5350053738597A7217B /* Packages */ = {
+			isa = PBXGroup;
+			children = (
+				3777C77968DECDEC9CA14462 /* ULinkSDK */,
+			);
+			name = Packages;
+			sourceTree = "<group>";
+		};
+		8C638E7D2E80312200B12A2A /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		BF5552D1E0F39E0C04367D5C = {
+			isa = PBXGroup;
+			children = (
+				4023E5350053738597A7217B /* Packages */,
+				E4B9C8D2E34EC88266F40378 /* ULinkSDKExample */,
+				DE602AA99B05284D7E35E584 /* Products */,
+				8C638E7D2E80312200B12A2A /* Frameworks */,
+			);
+			sourceTree = "<group>";
+		};
+		DE602AA99B05284D7E35E584 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				6EC54884E49D3961781DEBE4 /* ULinkSDKExample.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		E4B9C8D2E34EC88266F40378 /* ULinkSDKExample */ = {
+			isa = PBXGroup;
+			children = (
+				8C638E812E81662C00B12A2A /* ULinkSDKExample.entitlements */,
+				F96B21E305F7EEED414032CD /* Assets.xcassets */,
+				04B1F7C6F30DFA11647FE068 /* ContentView.swift */,
+				A96EC5F9F6FB99AD18697F6E /* Info.plist */,
+				A0ECB7A2D0589942F91FF8E9 /* ULinkSDKExampleApp.swift */,
+				D6BBC866BFD70D311A379A9C /* ULinkTestViewModel.swift */,
+			);
+			path = ULinkSDKExample;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		52E21D643CF5CB8EF368064D /* ULinkSDKExample */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = F9AC66F76968A386D5418A26 /* Build configuration list for PBXNativeTarget "ULinkSDKExample" */;
+			buildPhases = (
+				10FFDD79A2C188136D9442F4 /* Sources */,
+				574C2EE5981D5390CC3A0E49 /* Resources */,
+				50D1C493D783F210807E6C60 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = ULinkSDKExample;
+			packageProductDependencies = (
+				8C638E832E828FF000B12A2A /* ULinkSDK */,
+			);
+			productName = ULinkSDKExample;
+			productReference = 6EC54884E49D3961781DEBE4 /* ULinkSDKExample.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		4674AD0793F037529D41387F /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					52E21D643CF5CB8EF368064D = {
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = B1CF492A48D5A42F30F1536A /* Build configuration list for PBXProject "ULinkSDKExample" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = BF5552D1E0F39E0C04367D5C;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				8C638E822E828FF000B12A2A /* XCLocalSwiftPackageReference "../../ULinkSDK" */,
+			);
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				52E21D643CF5CB8EF368064D /* ULinkSDKExample */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		574C2EE5981D5390CC3A0E49 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E0D188322E9EF1D65DBA4E58 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		10FFDD79A2C188136D9442F4 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				3B8AB00AC357BC0B8AAC19AB /* ContentView.swift in Sources */,
+				63AF766FD9E7459EFA4F9FDE /* ULinkSDKExampleApp.swift in Sources */,
+				C67C92BD05E2ECA48CEE0419 /* ULinkTestViewModel.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		172FD42F690A83D874BF12D2 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		4384E697F64E54359B4C465B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		4FB94B2E7B0AD928570319C9 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = ULinkSDKExample/ULinkSDKExample.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = VV7A4C56U7;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ULinkSDKExample/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = ULinkSDKExample;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UIRequiredDeviceCapabilities = armv7;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.ULinkSDKExample;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		66267BF8CA2418EFC927EC20 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = ULinkSDKExample/ULinkSDKExample.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = VV7A4C56U7;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ULinkSDKExample/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = ULinkSDKExample;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UIRequiredDeviceCapabilities = armv7;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.ULinkSDKExample;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		B1CF492A48D5A42F30F1536A /* Build configuration list for PBXProject "ULinkSDKExample" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4384E697F64E54359B4C465B /* Debug */,
+				172FD42F690A83D874BF12D2 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		F9AC66F76968A386D5418A26 /* Build configuration list for PBXNativeTarget "ULinkSDKExample" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4FB94B2E7B0AD928570319C9 /* Debug */,
+				66267BF8CA2418EFC927EC20 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		8C638E822E828FF000B12A2A /* XCLocalSwiftPackageReference "../../ULinkSDK" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ../../ULinkSDK;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		8C638E832E828FF000B12A2A /* ULinkSDK */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = ULinkSDK;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 4674AD0793F037529D41387F /* Project object */;
+}
