@@ -13,7 +13,7 @@ Pod::Spec.new do |spec|
                       - Customizable configuration options
                       DESC
 
-  spec.homepage     = "https://github.com/ulink/ios-sdk"
+  spec.homepage     = "https://github.com/mohn93/ios_ulink_sdk"
   spec.license      = { :type => "MIT", :file => "LICENSE" }
   spec.author       = { "ULink" => "support@ulink.com" }
   spec.source       = { :git => 'https://github.com/mohn93/ios_ulink_sdk.git', :tag => spec.version.to_s }
