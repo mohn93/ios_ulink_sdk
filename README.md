@@ -63,10 +63,8 @@ func application(_ application: UIApplication, didFinishLaunchingWithOptions lau
     
     let config = ULinkConfig(
         apiKey: "your-api-key-here",
-        baseUrl: "https://api.ulink.com",
         debug: true,
         enableDeepLinkIntegration: true,
-        persistLastLinkData: true
     )
     
     let ulink = ULink.initialize(config: config)
