@@ -23,7 +23,7 @@ The ULink iOS SDK provides a comprehensive solution for creating, managing, and 
 
 ### CocoaPods
 
-Add the following to your `Podfile`:
+Add the following line to your `Podfile`:
 
 ```ruby
 pod 'ULinkSDK', '~> 1.0.0'
@@ -37,13 +37,18 @@ pod install
 
 ### Swift Package Manager
 
-Add the following to your `Package.swift`:
+Add the following dependency to your `Package.swift`:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/ulink/ios-sdk.git", from: "1.0.0")
+    .package(url: "https://github.com/mohn93/ios_ulink_sdk.git", from: "1.0.0")
 ]
 ```
+
+Or add it through Xcode:
+1. File → Add Package Dependencies
+2. Enter the repository URL: `https://github.com/mohn93/ios_ulink_sdk.git`
+3. Select version `1.0.0` or later
 
 ## Quick Start
 
