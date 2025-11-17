@@ -75,23 +75,9 @@ import Foundation
      * Creates ULinkResponse from JSON dictionary
      */
     @objc public static func fromJson(_ json: [String: Any]) -> ULinkResponse {
-        // Check for explicit success field first
-        if let explicitSuccess = json["success"] as? Bool {
-            let url = json["url"] as? String
-            let error = json["error"] as? String
-            
-            return ULinkResponse(
-                success: explicitSuccess,
-                url: url,
-                error: error,
-                data: json
-            )
-        }
-        
-        // If no explicit success field, determine success based on response content
+        // Always check for error field first - if present, it's a failure
         let error = json["error"] as? String
         if error != nil {
-            // Has error field, treat as failure
             return ULinkResponse(
                 success: false,
                 url: nil,
@@ -100,15 +86,28 @@ import Foundation
             )
         }
         
-        // Check for successful link creation indicators
+        // Check for explicit success field
+        if let explicitSuccess = json["success"] as? Bool {
+            let url = json["url"] as? String ?? json["shortUrl"] as? String
+            
+            return ULinkResponse(
+                success: explicitSuccess,
+                url: url,
+                error: nil,
+                data: json
+            )
+        }
+        
+        // If no explicit success field and no error, check for successful indicators
         let shortUrl = json["shortUrl"] as? String
+        let url = json["url"] as? String
         let id = json["id"] as? String
         
-        if shortUrl != nil || id != nil {
-            // Has shortUrl or id, treat as successful link creation
+        if shortUrl != nil || url != nil || id != nil {
+            // Has URL indicators, treat as successful
             return ULinkResponse(
                 success: true,
-                url: shortUrl,
+                url: shortUrl ?? url,
                 error: nil,
                 data: json
             )

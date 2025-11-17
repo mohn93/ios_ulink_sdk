@@ -27,7 +27,137 @@ import Combine
     
     // MARK: - Constants
     
-    private static let sdkVersion = "1.0.0"
+    private static let sdkVersion = "1.0.1"
+    
+    // MARK: - Error Handling Utility
+    
+    private func handleHTTPError(_ error: Error) -> ULinkResponse {
+        if let httpError = error as? ULinkHTTPError {
+            // Extract detailed HTTP error information
+            var errorData: [String: Any] = [
+                "statusCode": httpError.statusCode
+            ]
+            
+            // Use responseJSON if available, otherwise fall back to responseBody
+            if let responseJSON = httpError.responseJSON {
+                errorData["parsedResponse"] = responseJSON
+            } else if let responseBody = httpError.responseBody {
+                errorData["responseBody"] = responseBody
+                
+                // Try to parse JSON response for additional error details
+                if let data = responseBody.data(using: .utf8),
+                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                    errorData["parsedResponse"] = json
+                }
+            }
+            
+            let errorMessage = "HTTP error occurred (status: \(httpError.statusCode))"
+            return ULinkResponse.error(message: errorMessage, data: errorData)
+        } else {
+            return ULinkResponse.error(message: "Network error: \(error.localizedDescription)")
+        }
+    }
+    
+    private func handleSessionHTTPError(_ error: Error) -> ULinkSessionResponse {
+         if let httpError = error as? ULinkHTTPError {
+             if config.debug {
+                 print("[ULink] Failed to start session: \(httpError)")
+             }
+             
+             // Extract detailed HTTP error information
+             var errorMessage = "HTTP error occurred (status: \(httpError.statusCode))"
+             
+             // Use responseJSON if available, otherwise fall back to responseBody
+             var json: [String: Any]? = nil
+             if let responseJSON = httpError.responseJSON {
+                 json = responseJSON
+             } else if let responseBody = httpError.responseBody,
+                       let data = responseBody.data(using: .utf8) {
+                 json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+             }
+             
+             if let json = json {
+                 // Try to extract backend error message
+                 if let backendMessage = json["message"] as? String {
+                     errorMessage = "\(backendMessage) (status: \(httpError.statusCode))"
+                 } else if let backendError = json["error"] as? String {
+                     errorMessage = "\(backendError) (status: \(httpError.statusCode))"
+                 }
+             }
+             
+             return ULinkSessionResponse.error(errorMessage)
+         } else {
+             if config.debug {
+                 print("[ULink] Failed to start session: \(error)")
+             }
+             return ULinkSessionResponse.error("Network error: \(error.localizedDescription)")
+         }
+     }
+     
+     private func handleInstallationHTTPError(_ error: Error) -> ULinkInstallationResponse {
+         if let httpError = error as? ULinkHTTPError {
+             if config.debug {
+                 print("[ULink] Failed to track installation: \(httpError)")
+             }
+             
+             // Extract detailed HTTP error information
+             var errorData: [String: Any] = [
+                 "statusCode": httpError.statusCode
+             ]
+             
+             // Use responseJSON if available, otherwise fall back to responseBody
+             var json: [String: Any]? = nil
+             if let responseJSON = httpError.responseJSON {
+                 json = responseJSON
+                 errorData["parsedResponse"] = responseJSON
+             } else if let responseBody = httpError.responseBody,
+                       let data = responseBody.data(using: .utf8) {
+                 errorData["responseBody"] = responseBody
+                 json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+                 if let json = json {
+                     errorData["parsedResponse"] = json
+                 }
+             }
+             
+             if let json = json {
+                 // Try to extract backend error message
+                 if let backendMessage = json["message"] as? String {
+                     errorData["errorMessage"] = "\(backendMessage) (status: \(httpError.statusCode))"
+                 } else if let backendError = json["error"] as? String {
+                     errorData["errorMessage"] = "\(backendError) (status: \(httpError.statusCode))"
+                 } else {
+                     errorData["errorMessage"] = "HTTP error occurred (status: \(httpError.statusCode))"
+                 }
+             } else {
+                 errorData["errorMessage"] = "HTTP error occurred (status: \(httpError.statusCode))"
+             }
+             
+             return ULinkInstallationResponse(
+                 installationToken: nil,
+                 sessionId: nil,
+                 installationId: nil,
+                 data: errorData,
+                 statusCode: httpError.statusCode
+             )
+         } else {
+             if config.debug {
+                 print("[ULink] Failed to track installation: \(error)")
+             }
+             
+             let errorData: [String: Any] = [
+                 "errorMessage": "Network error: \(error.localizedDescription)",
+                 "statusCode": 500
+             ]
+             
+             return ULinkInstallationResponse(
+                 installationToken: nil,
+                 sessionId: nil,
+                 installationId: nil,
+                 data: errorData,
+                 statusCode: 500
+             )
+         }
+      }
     private static let prefsName = "ulink_prefs"
     private static let keyInstallationId = "installation_id"
     private static let keyInstallationToken = "installation_token"
@@ -118,6 +248,7 @@ import Combine
      * ```
      */
     public static func initialize(config: ULinkConfig) async -> ULink {
+        
         if _instance == nil {
             _instance = ULink(config: config)
             await _instance?.setup()
@@ -156,9 +287,13 @@ import Combine
         // Bootstrap (track installation and start session)
         await bootstrap()
         
-        // Handle initial URL if set
-        if let initialUrl = initialUrl {
-            handleDeepLink(url: initialUrl)
+        // Handle initial URL if automatic deep link integration is enabled
+        if config.enableDeepLinkIntegration {
+            if let initialUrl = initialUrl {
+                handleDeepLink(url: initialUrl)
+            }
+        } else if config.debug, initialUrl != nil {
+            print("[ULink] Deep link integration disabled - initial URL will be ignored until handled manually")
         }
     }
     
@@ -291,38 +426,69 @@ import Combine
         return bootstrapData
     }
     
-    public  func trackInstallation() async throws -> ULinkInstallationResponse {
-        let body = await buildBootstrapBody()
-        
-        var headers = [
-            "X-App-Key": config.apiKey,
-            "Content-Type": "application/json",
-            "X-ULink-Client": "sdk-ios",
-            "X-ULink-Client-Version": ULink.sdkVersion,
-            "X-ULink-Client-Platform": "ios"
-        ]
-        
-        // Add installation token if available (like Flutter SDK)
-        if let installationToken = getInstallationToken(), !installationToken.isEmpty {
-            headers["X-Installation-Token"] = installationToken
+    private func trackInstallation() async -> ULinkInstallationResponse {
+        do {
+            let body = await buildBootstrapBody()
+            
+            var headers = [
+                "X-App-Key": config.apiKey,
+                "Content-Type": "application/json",
+                "X-ULink-Client": "sdk-ios",
+                "X-ULink-Client-Version": ULink.sdkVersion,
+                "X-ULink-Client-Platform": "ios"
+            ]
+            
+            // Add installation token if available (like Flutter SDK)
+            if let installationToken = getInstallationToken(), !installationToken.isEmpty {
+                headers["X-Installation-Token"] = installationToken
+            }
+            
+            // Add installation ID if available
+            if let installationId = getInstallationId(), !installationId.isEmpty {
+                headers["X-Installation-Id"] = installationId
+            }
+            
+            // Add device ID if available (like Flutter SDK)
+            let deviceInfo = await DeviceInfoUtils.getCompleteDeviceInfo()
+            if let deviceId = deviceInfo["deviceId"] as? String, !deviceId.isEmpty {
+                headers["X-Device-Id"] = deviceId
+            }
+            
+            let response: ULinkInstallationResponse = try await httpClient.post(
+                url: "\(config.baseUrl)/sdk/bootstrap",
+                body: body,
+                headers: headers
+            )
+            
+            // Check if the response indicates success
+            if response.success {
+                return response
+            } else {
+                // Extract error message from response data if available
+                let errorMessage: String
+                if let data = response.data,
+                   let message = data["errorMessage"] as? String {
+                    errorMessage = message
+                } else {
+                    errorMessage = "Unknown error occurred"
+                }
+                
+                let errorData: [String: Any] = [
+                    "errorMessage": errorMessage,
+                    "statusCode": response.statusCode
+                ]
+                
+                return ULinkInstallationResponse(
+                    installationToken: nil,
+                    sessionId: nil,
+                    installationId: nil,
+                    data: errorData,
+                    statusCode: response.statusCode
+                )
+            }
+        } catch {
+            return handleInstallationHTTPError(error)
         }
-        
-        // Add installation ID if available
-        if let installationId = getInstallationId(), !installationId.isEmpty {
-            headers["X-Installation-Id"] = installationId
-        }
-        
-        // Add device ID if available (like Flutter SDK)
-        let deviceInfo = await DeviceInfoUtils.getCompleteDeviceInfo()
-        if let deviceId = deviceInfo["deviceId"] as? String, !deviceId.isEmpty {
-            headers["X-Device-Id"] = deviceId
-        }
-        
-        return try await httpClient.post(
-            url: "\(config.baseUrl)/sdk/bootstrap",
-            body: body,
-            headers: headers
-        )
     }
     
     // MARK: - Deep Link Handling
@@ -367,24 +533,13 @@ import Combine
             print("[ULink] Handling incoming URL: \(url.absoluteString)")
         }
         
-        // Check if this is a ULink URL
-        guard isULinkUrl(url) else {
-            if config.debug {
-                print("[ULink] URL is not a ULink URL")
-            }
-            return false
-        }
         
         // Handle the deep link
         handleDeepLink(url: url)
         return true
     }
     
-    private func isULinkUrl(_ url: URL) -> Bool {
-        // Always return true and let processULinkUrl handle server-side validation
-        // This aligns with the Flutter SDK approach for consistency
-        return true
-    }
+  
     
     public func processULinkUrl(_ url: URL) async -> ULinkResolvedData? {
         do {
@@ -398,6 +553,14 @@ import Combine
             }
             
             let resolveResponse = try await resolveLink(url: url.absoluteString)
+            
+            // Check if the response was successful before processing data
+            if !resolveResponse.success {
+                if config.debug {
+                    print("[ULink] Server returned error: \(resolveResponse.error ?? "Unknown error")")
+                }
+                return nil
+            }
             
             if let responseData = resolveResponse.data,
                let resolvedData = ULinkResolvedData.fromDictionary(responseData) {
@@ -432,14 +595,6 @@ import Combine
             lastLinkData = nil
         }
         return data
-    }
-    
-    /**
-     * Clears the last resolved link data
-     */
-    @objc public func clearLastResolvedLink() {
-        clearPersistedLastLink()
-        lastLinkData = nil
     }
     
     // MARK: - Link Creation
@@ -485,11 +640,14 @@ import Combine
                 }
                 return response
             } else {
-                let errorMessage = response.error ?? "Unknown error occurred"
-                return ULinkResponse.error(message: errorMessage, data: responseData)
+                throw ULinkError.linkCreationError
             }
+        } catch let ulinkError as ULinkError {
+            // Re-throw ULinkError instances
+            throw ulinkError
         } catch {
-            return ULinkResponse.error(message: "Network error: \(error.localizedDescription)")
+            // Handle other errors by converting to ULinkError
+            throw ULinkError.networkError
         }
     }
     
@@ -535,15 +693,24 @@ import Combine
                 sessionState = .active
             }
             
+            // If the response indicates failure, throw an appropriate error
+            if !response.success {
+                throw ULinkError.linkResolutionError
+            }
+            
             return response
+        } catch let ulinkError as ULinkError {
+            // Re-throw ULinkError instances
+            throw ulinkError
         } catch {
-            throw error
+            // Handle other errors by converting to ULinkError
+            throw ULinkError.networkError
         }
     }
     
     // MARK: - Session Management
     
-    public func startSession(metadata: [String: Any]? = nil) async throws -> ULinkSessionResponse {
+    private func startSession(metadata: [String: Any]? = nil) async throws -> ULinkSessionResponse {
         sessionState = .initializing
         
         do {
@@ -664,11 +831,7 @@ import Combine
             sessionContinuation?.resume()
             sessionContinuation = nil
             
-            if config.debug {
-                print("[ULink] Failed to start session: \(error)")
-            }
-            
-            return ULinkSessionResponse.error(error.localizedDescription)
+            return handleSessionHTTPError(error)
         }
     }
     
@@ -735,17 +898,9 @@ import Combine
         return sessionState
     }
     
-
-    
-    /// Checks if a session is currently active
-    /// - Returns: True if a session is active, false otherwise
-    @objc public func isSessionActive() -> Bool {
-        return sessionState == .active && currentSessionId != nil
-    }
-    
     /// Waits for the current session to complete initialization
     /// - Returns: True if session is active, false if failed or timed out
-    public func waitForSession(timeout: TimeInterval = 30.0) async -> Bool {
+    private func waitForSession(timeout: TimeInterval = 30.0) async -> Bool {
         // If already active, return immediately
         if sessionState == .active {
             return true
@@ -823,10 +978,14 @@ import Combine
             }
         }
         
-        // Process any pending deep links
-        if let initialUrl = initialUrl {
-            handleDeepLink(url: initialUrl)
-            self.initialUrl = nil // Clear after processing
+        // Process any pending deep links when automatic integration is enabled
+        if config.enableDeepLinkIntegration {
+            if let initialUrl = initialUrl {
+                handleDeepLink(url: initialUrl)
+                self.initialUrl = nil // Clear after processing
+            }
+        } else if config.debug, initialUrl != nil {
+            print("[ULink] Deep link integration disabled - pending initial URL will not be processed automatically")
         }
     }
     

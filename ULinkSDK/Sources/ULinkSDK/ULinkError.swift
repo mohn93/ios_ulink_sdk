@@ -9,6 +9,31 @@
 import Foundation
 
 /**
+ * Detailed HTTP error information
+ */
+public struct ULinkHTTPError: Error {
+    public let statusCode: Int
+    public let responseBody: String?
+    public let responseJSON: [String: Any]?
+    public let originalError: Error?
+    
+    public init(statusCode: Int, responseBody: String? = nil, responseJSON: [String: Any]? = nil, originalError: Error? = nil) {
+        self.statusCode = statusCode
+        self.responseBody = responseBody
+        self.responseJSON = responseJSON
+        self.originalError = originalError
+    }
+    
+    public var localizedDescription: String {
+        var description = "HTTP error occurred (status: \(statusCode))"
+        if let responseBody = responseBody, !responseBody.isEmpty {
+            description += ". Response: \(responseBody)"
+        }
+        return description
+    }
+}
+
+/**
  * Error types for the ULink SDK
  */
 @objc public enum ULinkError: Int, Error, CaseIterable {

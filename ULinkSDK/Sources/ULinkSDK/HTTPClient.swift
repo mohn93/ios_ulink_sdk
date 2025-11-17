@@ -46,7 +46,7 @@ public class HTTPClient {
             print("[ULink HTTPClient] GET \(url)")
         }
         
-        let data = try await performRequest(request)
+        let (data, _) = try await performRequest(request)
         
         if debug {
             if let responseString = String(data: data, encoding: .utf8) {
@@ -86,7 +86,7 @@ public class HTTPClient {
         }
         
         do {
-            let data = try await performRequest(request)
+            let (data, _) = try await performRequest(request)
             return try JSONDecoder().decode(T.self, from: data)
         } catch {
             if debug {
@@ -123,10 +123,32 @@ public class HTTPClient {
         }
         
         do {
-            let data = try await performRequest(request)
+            let (data, httpResponse) = try await performRequest(request)
             
+            // Try to deserialize JSON response regardless of HTTP status
             guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+                // If JSON deserialization fails and we have an HTTP error, throw HTTP error with raw response
+                if !(200...299 ~= httpResponse.statusCode) {
+                    let responseString = String(data: data, encoding: .utf8)
+                    if debug {
+                        print("[ULink HTTPClient] HTTP Error \(httpResponse.statusCode) with invalid JSON")
+                        if let responseString = responseString {
+                            print("[ULink HTTPClient] Error Response Body: \(responseString)")
+                        }
+                    }
+                    throw ULinkHTTPError(statusCode: httpResponse.statusCode, responseBody: responseString)
+                }
                 throw ULinkError.invalidResponse
+            }
+            
+            // Check for HTTP error after successful JSON deserialization
+            if !(200...299 ~= httpResponse.statusCode) {
+                if debug {
+                    print("[ULink HTTPClient] HTTP Error \(httpResponse.statusCode) with JSON response")
+                    print("[ULink HTTPClient] Error Response JSON: \(json)")
+                }
+                // Include the deserialized JSON in the error
+                throw ULinkHTTPError(statusCode: httpResponse.statusCode, responseBody: nil, responseJSON: json)
             }
             
             return json
@@ -157,10 +179,32 @@ public class HTTPClient {
         }
         
         do {
-            let data = try await performRequest(request)
+            let (data, httpResponse) = try await performRequest(request)
             
+            // Try to deserialize JSON response regardless of HTTP status
             guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+                // If JSON deserialization fails and we have an HTTP error, throw HTTP error with raw response
+                if !(200...299 ~= httpResponse.statusCode) {
+                    let responseString = String(data: data, encoding: .utf8)
+                    if debug {
+                        print("[ULink HTTPClient] HTTP Error \(httpResponse.statusCode) with invalid JSON")
+                        if let responseString = responseString {
+                            print("[ULink HTTPClient] Error Response Body: \(responseString)")
+                        }
+                    }
+                    throw ULinkHTTPError(statusCode: httpResponse.statusCode, responseBody: responseString)
+                }
                 throw ULinkError.invalidResponse
+            }
+            
+            // Check for HTTP error after successful JSON deserialization
+            if !(200...299 ~= httpResponse.statusCode) {
+                if debug {
+                    print("[ULink HTTPClient] HTTP Error \(httpResponse.statusCode) with JSON response")
+                    print("[ULink HTTPClient] Error Response JSON: \(json)")
+                }
+                // Include the deserialized JSON in the error
+                throw ULinkHTTPError(statusCode: httpResponse.statusCode, responseBody: nil, responseJSON: json)
             }
             
             return json
@@ -193,7 +237,7 @@ public class HTTPClient {
         }
         
         do {
-            let data = try await performRequest(request)
+            let (data, _) = try await performRequest(request)
             return try JSONDecoder().decode(T.self, from: data)
         } catch {
             if debug {
@@ -205,7 +249,7 @@ public class HTTPClient {
     
     // MARK: - Private Methods
     
-    private func performRequest(_ request: URLRequest) async throws -> Data {
+    private func performRequest(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
         do {
             if debug {
                 print("[ULink HTTPClient] \(request.httpMethod ?? "UNKNOWN") \(request.url?.absoluteString ?? "unknown URL")")
@@ -235,17 +279,7 @@ public class HTTPClient {
                 }
             }
             
-            guard 200...299 ~= httpResponse.statusCode else {
-                if debug {
-                    print("[ULink HTTPClient] HTTP Error \(httpResponse.statusCode)")
-                    if let responseString = String(data: data, encoding: .utf8) {
-                        print("[ULink HTTPClient] Error Response Body: \(responseString)")
-                    }
-                }
-                throw ULinkError.httpError
-            }
-            
-            return data
+            return (data, httpResponse)
         } catch {
             if debug {
                 print("[ULink HTTPClient] Request failed: \(error.localizedDescription)")
