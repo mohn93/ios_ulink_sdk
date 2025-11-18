@@ -27,7 +27,7 @@ import Combine
     
     // MARK: - Constants
     
-    private static let sdkVersion = "1.0.1"
+    private static let sdkVersion = "1.0.2"
     
     // MARK: - Error Handling Utility
     
@@ -640,20 +640,61 @@ import Combine
                 }
                 return response
             } else {
-                throw ULinkError.linkCreationError
+                // Return error response with detailed information
+                return response
             }
+        } catch let httpError as ULinkHTTPError {
+            // Extract detailed HTTP error information
+            var errorData: [String: Any] = [
+                "statusCode": httpError.statusCode
+            ]
+            
+            // Use responseJSON if available, otherwise fall back to responseBody
+            if let responseJSON = httpError.responseJSON {
+                errorData.merge(responseJSON) { (_, new) in new }
+            } else if let responseBody = httpError.responseBody {
+                errorData["responseBody"] = responseBody
+                
+                // Try to parse JSON response for additional error details
+                if let data = responseBody.data(using: .utf8),
+                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                    errorData.merge(json) { (_, new) in new }
+                }
+            }
+            
+            // Build error message similar to Android format: "HTTP 400: {json_response}"
+            var errorMessage = "HTTP \(httpError.statusCode)"
+            if let responseBody = httpError.responseBody {
+                // Use raw response body if available (matches Android format)
+                errorMessage += ": \(responseBody)"
+            } else if let responseJSON = httpError.responseJSON {
+                // Serialize JSON back to string to match Android format
+                if let jsonData = try? JSONSerialization.data(withJSONObject: responseJSON, options: []),
+                   let jsonString = String(data: jsonData, encoding: .utf8) {
+                    errorMessage += ": \(jsonString)"
+                } else {
+                    // Fallback: try to extract message or error field
+                    if let message = responseJSON["message"] as? String {
+                        errorMessage += ": \(message)"
+                    } else if let error = responseJSON["error"] as? String {
+                        errorMessage += ": \(error)"
+                    }
+                }
+            }
+            
+            return ULinkResponse.error(message: errorMessage, data: errorData)
         } catch let ulinkError as ULinkError {
-            // Re-throw ULinkError instances
-            throw ulinkError
+            // For other ULinkError instances, return error response
+            return ULinkResponse.error(message: ulinkError.localizedDescription, data: nil)
         } catch {
-            // Handle other errors by converting to ULinkError
-            throw ULinkError.networkError
+            // Handle other errors
+            return ULinkResponse.error(message: "Network error: \(error.localizedDescription)", data: nil)
         }
     }
     
     public func resolveLink(url: String) async throws -> ULinkResponse {
         guard let encodedUrl = url.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else {
-            throw ULinkError.invalidURL
+            return ULinkResponse.error(message: "Invalid URL provided", data: nil)
         }
         
         let resolveUrl = "\(config.baseUrl)/sdk/resolve?url=\(encodedUrl)"
@@ -693,18 +734,58 @@ import Combine
                 sessionState = .active
             }
             
-            // If the response indicates failure, throw an appropriate error
+            // If the response indicates failure, return error response with details
             if !response.success {
-                throw ULinkError.linkResolutionError
+                return response
             }
             
             return response
+        } catch let httpError as ULinkHTTPError {
+            // Extract detailed HTTP error information
+            var errorData: [String: Any] = [
+                "statusCode": httpError.statusCode
+            ]
+            
+            // Use responseJSON if available, otherwise fall back to responseBody
+            if let responseJSON = httpError.responseJSON {
+                errorData.merge(responseJSON) { (_, new) in new }
+            } else if let responseBody = httpError.responseBody {
+                errorData["responseBody"] = responseBody
+                
+                // Try to parse JSON response for additional error details
+                if let data = responseBody.data(using: .utf8),
+                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                    errorData.merge(json) { (_, new) in new }
+                }
+            }
+            
+            // Build error message similar to Android format: "HTTP 400: {json_response}"
+            var errorMessage = "HTTP \(httpError.statusCode)"
+            if let responseBody = httpError.responseBody {
+                // Use raw response body if available (matches Android format)
+                errorMessage += ": \(responseBody)"
+            } else if let responseJSON = httpError.responseJSON {
+                // Serialize JSON back to string to match Android format
+                if let jsonData = try? JSONSerialization.data(withJSONObject: responseJSON, options: []),
+                   let jsonString = String(data: jsonData, encoding: .utf8) {
+                    errorMessage += ": \(jsonString)"
+                } else {
+                    // Fallback: try to extract message or error field
+                    if let message = responseJSON["message"] as? String {
+                        errorMessage += ": \(message)"
+                    } else if let error = responseJSON["error"] as? String {
+                        errorMessage += ": \(error)"
+                    }
+                }
+            }
+            
+            return ULinkResponse.error(message: errorMessage, data: errorData)
         } catch let ulinkError as ULinkError {
-            // Re-throw ULinkError instances
-            throw ulinkError
+            // For other ULinkError instances, return error response
+            return ULinkResponse.error(message: ulinkError.localizedDescription, data: nil)
         } catch {
-            // Handle other errors by converting to ULinkError
-            throw ULinkError.networkError
+            // Handle other errors
+            return ULinkResponse.error(message: "Network error: \(error.localizedDescription)", data: nil)
         }
     }
     
