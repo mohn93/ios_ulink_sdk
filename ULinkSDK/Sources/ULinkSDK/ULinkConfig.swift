@@ -60,6 +60,12 @@ import Foundation
     public let redactedParameterKeysInLastLink: [String]
     
     /**
+     * If true, automatically checks for deferred deep links on first app launch
+     * If false, developers must manually call checkDeferredLink() when ready
+     */
+    @objc public let autoCheckDeferredLink: Bool
+    
+    /**
      * Creates a new ULink configuration
      *
      * - Parameters:
@@ -82,7 +88,8 @@ import Foundation
         lastLinkTimeToLive: TimeInterval? = 24 * 60 * 60, // 24 hours
         clearLastLinkOnRead: Bool = false,
         redactAllParametersInLastLink: Bool = false,
-        redactedParameterKeysInLastLink: [String] = []
+        redactedParameterKeysInLastLink: [String] = [],
+        autoCheckDeferredLink: Bool = true
     ) {
         self.apiKey = apiKey
         self.baseUrl = baseUrl
@@ -93,6 +100,7 @@ import Foundation
         self.clearLastLinkOnRead = clearLastLinkOnRead
         self.redactAllParametersInLastLink = redactAllParametersInLastLink
         self.redactedParameterKeysInLastLink = redactedParameterKeysInLastLink
+        self.autoCheckDeferredLink = autoCheckDeferredLink
         super.init()
     }
 }

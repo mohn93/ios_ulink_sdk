@@ -302,4 +302,4 @@ MIT License. See LICENSE file for details.
 
 ## Support
 
-For support, please contact support@ulink.com or visit our documentation at https://docs.ulink.com
+For support, please contact support@ulink.ly or visit our documentation at https://docs.ulink.com

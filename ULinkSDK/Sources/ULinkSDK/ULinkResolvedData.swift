@@ -63,7 +63,15 @@ import Foundation
      */
     @objc public let type: String?
     
-
+    /**
+     * Whether this link was resolved from deferred deep linking
+     */
+    @objc public let isDeferred: Bool
+    
+    /**
+     * Match type for deferred links: 'deterministic', 'fingerprint', or nil for regular links
+     */
+    @objc public let matchType: String?
     
     /**
      * Timestamp when the link was resolved
@@ -89,7 +97,8 @@ import Foundation
         socialMediaTags: SocialMediaTags? = nil,
         metadata: [String: Any]? = nil,
         type: String? = nil,
-
+        isDeferred: Bool = false,
+        matchType: String? = nil,
         resolvedAt: Date? = nil,
         rawData: [String: Any]? = nil
     ) {
@@ -103,7 +112,8 @@ import Foundation
         self.socialMediaTags = socialMediaTags
         self.metadata = metadata
         self.type = type
-
+        self.isDeferred = isDeferred
+        self.matchType = matchType
         self.resolvedAt = resolvedAt
         self.rawData = rawData
         super.init()
@@ -174,9 +184,10 @@ import Foundation
             socialMediaTags: socialMediaTags,
             metadata: metadata,
             type: json["type"] as? String,
-
+            isDeferred: json["isDeferred"] as? Bool ?? false,
+            matchType: json["matchType"] as? String,
             resolvedAt: resolvedAt,
-            rawData: json  // Fix: Include rawData assignment that was missing
+            rawData: json
         )
     }
     
@@ -224,7 +235,10 @@ import Foundation
         if let type = type {
             data["type"] = type
         }
-
+        data["isDeferred"] = isDeferred
+        if let matchType = matchType {
+            data["matchType"] = matchType
+        }
         if let resolvedAt = resolvedAt {
             let formatter = ISO8601DateFormatter()
             data["resolvedAt"] = formatter.string(from: resolvedAt)
@@ -245,7 +259,7 @@ import Foundation
     private enum CodingKeys: String, CodingKey {
         case slug, iosFallbackUrl, androidFallbackUrl, fallbackUrl
         case iosUrl, androidUrl, parameters, socialMediaTags
-        case metadata, type, resolvedAt
+        case metadata, type, isDeferred, matchType, resolvedAt
     }
     
     public required init(from decoder: Decoder) throws {
@@ -275,6 +289,8 @@ import Foundation
         }
         
         type = try container.decodeIfPresent(String.self, forKey: .type)
+        isDeferred = try container.decodeIfPresent(Bool.self, forKey: .isDeferred) ?? false
+        matchType = try container.decodeIfPresent(String.self, forKey: .matchType)
         resolvedAt = try container.decodeIfPresent(Date.self, forKey: .resolvedAt)
         rawData = nil
         
@@ -306,6 +322,8 @@ import Foundation
         }
         
         try container.encodeIfPresent(type, forKey: .type)
+        try container.encode(isDeferred, forKey: .isDeferred)
+        try container.encodeIfPresent(matchType, forKey: .matchType)
         try container.encodeIfPresent(resolvedAt, forKey: .resolvedAt)
     }
 }

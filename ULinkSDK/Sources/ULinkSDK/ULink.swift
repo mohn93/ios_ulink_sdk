@@ -27,7 +27,7 @@ import Combine
     
     // MARK: - Constants
     
-    private static let sdkVersion = "1.0.3"
+    private static let sdkVersion = "1.0.4"
     
     // MARK: - Error Handling Utility
     
@@ -295,6 +295,11 @@ import Combine
         } else if config.debug, initialUrl != nil {
             print("[ULink] Deep link integration disabled - initial URL will be ignored until handled manually")
         }
+        
+        // Check for deferred links after bootstrap completes (if enabled in config)
+        if config.autoCheckDeferredLink {
+            checkDeferredLink()
+        }
     }
     
     // MARK: - Installation Management
@@ -493,13 +498,33 @@ import Combine
     
     // MARK: - Deep Link Handling
     
-    @objc public func handleDeepLink(url: URL) {
+    @objc public func handleDeepLink(url: URL, isDeferred: Bool = false, matchType: String? = nil) {
         if config.debug {
-            print("[ULink] Handling deep link: \(url.absoluteString)")
+            print("[ULink] Handling deep link: \(url.absoluteString) (isDeferred: \(isDeferred), matchType: \(matchType ?? "nil"))")
         }
         
         Task {
-            if let resolvedData = await processULinkUrl(url) {
+            if var resolvedData = await processULinkUrl(url) {
+                // Inject isDeferred and matchType if this came from deferred deep linking
+                if isDeferred {
+                    resolvedData = ULinkResolvedData(
+                        slug: resolvedData.slug,
+                        iosFallbackUrl: resolvedData.iosFallbackUrl,
+                        androidFallbackUrl: resolvedData.androidFallbackUrl,
+                        fallbackUrl: resolvedData.fallbackUrl,
+                        iosUrl: resolvedData.iosUrl,
+                        androidUrl: resolvedData.androidUrl,
+                        parameters: resolvedData.parameters,
+                        socialMediaTags: resolvedData.socialMediaTags,
+                        metadata: resolvedData.metadata,
+                        type: resolvedData.type,
+                        isDeferred: true,
+                        matchType: matchType,
+                        resolvedAt: resolvedData.resolvedAt,
+                        rawData: resolvedData.rawData
+                    )
+                }
+                
                 // Determine link type and emit to appropriate stream
                 if resolvedData.type == "unified" {
                     _unifiedLinkSubject.send(resolvedData)
@@ -1213,5 +1238,109 @@ import Combine
         Task {
             _ = await endSession()
         }
+    }
+    @objc public func checkDeferredLink() {
+        let defaults = UserDefaults.standard
+        if defaults.bool(forKey: "ulink_deferred_checked") {
+            if config.debug {
+                print("[ULink] Deferred link check skipped: already checked")
+            }
+            return
+        }
+        
+        if config.debug {
+            print("[ULink] Checking for deferred link...")
+        }
+        
+        // Collect fingerprint
+        var fingerprint: [String: Any] = [
+            "os": "ios",
+            "model": UIDevice.current.model,
+            "name": UIDevice.current.name,
+            "systemName": UIDevice.current.systemName,
+            "systemVersion": UIDevice.current.systemVersion
+        ]
+        
+        if let identifier = UIDevice.current.identifierForVendor?.uuidString {
+            fingerprint["identifierForVendor"] = identifier
+        }
+        
+        // Add common fields for browser matching
+        // Screen Resolution
+        let screen = UIScreen.main
+        let width = Int(screen.bounds.width)
+        let height = Int(screen.bounds.height)
+        fingerprint["screenResolution"] = "\(width)x\(height)"
+        
+        // Timezone
+        fingerprint["timezone"] = TimeZone.current.identifier
+        
+        // Language
+        if let language = Locale.preferredLanguages.first {
+            fingerprint["language"] = language.replacingOccurrences(of: "_", with: "-")
+        } else {
+            fingerprint["language"] = Locale.current.identifier.replacingOccurrences(of: "_", with: "-")
+        }
+        
+        if config.debug {
+            print("[ULink] Deferred link fingerprint: \(fingerprint)")
+        }
+        
+        // Call API
+        guard let url = URL(string: "https://api.ulink.ly/sdk/deferred/match") else { return }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue(self.config.apiKey, forHTTPHeaderField: "X-App-Key")
+        
+        let body: [String: Any] = ["fingerprint": fingerprint]
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        
+        URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
+            if let error = error {
+                if self?.config.debug == true {
+                    print("[ULink] Deferred link check failed: \(error.localizedDescription)")
+                }
+                return
+            }
+            
+            if let data = data,
+               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                
+                if self?.config.debug == true {
+                    print("[ULink] Deferred link response: \(json)")
+                }
+                
+                // Check success flag
+                let isSuccess = json["success"] as? Bool ?? false
+                
+                if isSuccess,
+                   let dataDict = json["data"] as? [String: Any] {
+                    
+                    let matchType = json["matchType"] as? String
+                    
+                    if let deepLink = dataDict["deepLink"] as? String {
+                        // Handle the deep link
+                        if self?.config.debug == true {
+                             print("[ULink] Matched deferred link: \(deepLink) (matchType: \(matchType ?? "nil"))")
+                        }
+                        
+                        // If we have a deep link, we should process it with deferred flag
+                        if let url = URL(string: deepLink) {
+                            self?.handleDeepLink(url: url, isDeferred: true, matchType: matchType)
+                        }
+                    } else {
+                        if self?.config.debug == true {
+                            print("[ULink] Deferred link matched but no deepLink found in data")
+                        }
+                    }
+                } else if self?.config.debug == true {
+                    print("[ULink] No deferred link matched")
+                }
+            }
+            
+            defaults.set(true, forKey: "ulink_deferred_checked")
+        }.resume()
     }
 }
