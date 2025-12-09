@@ -35,6 +35,8 @@ let package = Package(
                 "ULinkSession.swift",
                 "ULinkInstallationResponse.swift",
                 "ULinkSessionResponse.swift",
+                "ULinkInstallationInfo.swift",
+                "ULinkLogEntry.swift",
                 "HTTPClient.swift",
                 "DeviceInfoHelper.swift",
                 "DeviceInfoUtils.swift",

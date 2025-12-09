@@ -86,8 +86,30 @@ public class HTTPClient {
         }
         
         do {
-            let (data, _) = try await performRequest(request)
-            return try JSONDecoder().decode(T.self, from: data)
+            let (data, httpResponse) = try await performRequest(request)
+            
+            // Check for HTTP errors before decoding
+            if !(200...299 ~= httpResponse.statusCode) {
+                if debug {
+                    print("[ULink HTTPClient] HTTP Error: \(httpResponse.statusCode)")
+                    if let responseString = String(data: data, encoding: .utf8) {
+                        print("[ULink HTTPClient] Error Response: \(responseString)")
+                    }
+                }
+                throw ULinkHTTPError(statusCode: httpResponse.statusCode, responseBody: String(data: data, encoding: .utf8))
+            }
+            
+            do {
+                return try JSONDecoder().decode(T.self, from: data)
+            } catch let decodingError {
+                if debug {
+                    print("[ULink HTTPClient] JSON Decoding failed: \(decodingError)")
+                    if let responseString = String(data: data, encoding: .utf8) {
+                        print("[ULink HTTPClient] Response that failed to decode: \(responseString)")
+                    }
+                }
+                throw decodingError
+            }
         } catch {
             if debug {
                 print("[ULink HTTPClient] POST request failed: \(error.localizedDescription)")

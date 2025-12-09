@@ -360,7 +360,7 @@ import CoreTelephony
      * Gets the SDK version
      */
     @objc public static func getSDKVersion() -> String {
-        return "1.0.0" // This should match your SDK version
+        return "1.0.5" // This should match your SDK version
     }
     
     /**
@@ -375,6 +375,23 @@ import CoreTelephony
         let bundleId = deviceInfo["bundleId"] as? String ?? "unknown"
         
         return "\(bundleId)/\(appVersion) (\(deviceModel); \(osName) \(osVersion))"
+    }
+    
+    /**
+     * Gets the persistent device ID that survives app reinstalls.
+     * 
+     * This uses iOS Keychain storage which:
+     * - Persists across app reinstalls
+     * - Is cleared on device reset or if user explicitly clears Keychain data
+     * - Is unique per device
+     * 
+     * Used for reinstall detection - when the same persistentDeviceId
+     * appears with a different installationId, it indicates a reinstall.
+     * 
+     * - Returns: The persistent device ID, or nil if Keychain is unavailable
+     */
+    @objc public static func getPersistentDeviceId() -> String? {
+        return KeychainHelper.getPersistentDeviceId()
     }
     
     /**
@@ -427,3 +444,108 @@ extension String {
 // Import CommonCrypto for SHA256
 import CommonCrypto
 import SystemConfiguration
+import Security
+
+// MARK: - Keychain Helper for Persistent Device ID
+
+/**
+ * Helper class for storing and retrieving data from the iOS Keychain.
+ * The Keychain persists across app reinstalls, making it ideal for
+ * storing a persistent device identifier for reinstall detection.
+ */
+class KeychainHelper {
+    
+    private static let serviceName = "ly.ulink.sdk"
+    private static let persistentDeviceIdKey = "persistentDeviceId"
+    
+    /**
+     * Retrieves or creates a persistent device ID stored in the Keychain.
+     * 
+     * This ID survives app reinstalls (unless user explicitly clears Keychain
+     * or resets their device). It's used to detect when an app has been
+     * reinstalled on the same device.
+     * 
+     * - Returns: The persistent device ID string, or nil if Keychain is unavailable
+     */
+    static func getPersistentDeviceId() -> String? {
+        // First, try to read existing ID from Keychain
+        if let existingId = readFromKeychain(key: persistentDeviceIdKey) {
+            return existingId
+        }
+        
+        // If no existing ID, generate a new UUID and save it
+        let newId = UUID().uuidString
+        if saveToKeychain(key: persistentDeviceIdKey, value: newId) {
+            return newId
+        }
+        
+        // If Keychain save failed, return the new ID anyway
+        // (it won't persist across reinstalls but app will still work)
+        return newId
+    }
+    
+    /**
+     * Saves a string value to the Keychain
+     */
+    private static func saveToKeychain(key: String, value: String) -> Bool {
+        guard let data = value.data(using: .utf8) else { return false }
+        
+        // First, try to delete any existing item
+        let deleteQuery: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: serviceName,
+            kSecAttrAccount as String: key
+        ]
+        SecItemDelete(deleteQuery as CFDictionary)
+        
+        // Now add the new item
+        let addQuery: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: serviceName,
+            kSecAttrAccount as String: key,
+            kSecValueData as String: data,
+            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+        ]
+        
+        let status = SecItemAdd(addQuery as CFDictionary, nil)
+        return status == errSecSuccess
+    }
+    
+    /**
+     * Reads a string value from the Keychain
+     */
+    private static func readFromKeychain(key: String) -> String? {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: serviceName,
+            kSecAttrAccount as String: key,
+            kSecReturnData as String: true,
+            kSecMatchLimit as String: kSecMatchLimitOne
+        ]
+        
+        var result: AnyObject?
+        let status = SecItemCopyMatching(query as CFDictionary, &result)
+        
+        guard status == errSecSuccess,
+              let data = result as? Data,
+              let string = String(data: data, encoding: .utf8) else {
+            return nil
+        }
+        
+        return string
+    }
+    
+    /**
+     * Deletes a value from the Keychain (for testing/debugging)
+     */
+    static func deleteFromKeychain(key: String) -> Bool {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: serviceName,
+            kSecAttrAccount as String: key
+        ]
+        
+        let status = SecItemDelete(query as CFDictionary)
+        return status == errSecSuccess || status == errSecItemNotFound
+    }
+}

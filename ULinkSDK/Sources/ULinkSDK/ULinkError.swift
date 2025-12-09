@@ -34,6 +34,77 @@ public struct ULinkHTTPError: Error {
 }
 
 /**
+ * Detailed SDK initialization and operation errors (Swift-only, supports associated values)
+ */
+public enum ULinkInitializationError: Error, LocalizedError {
+    /// Bootstrap failed during SDK initialization
+    case bootstrapFailed(statusCode: Int, message: String)
+    
+    /// Deep link resolution failed
+    case deepLinkResolutionFailed(message: String)
+    
+    /// Deferred link check failed
+    case deferredLinkFailed(message: String)
+    
+    /// Last link data loading failed
+    case lastLinkDataLoadFailed(message: String)
+    
+    public var errorDescription: String? {
+        switch self {
+        case .bootstrapFailed(let statusCode, let message):
+            return "Bootstrap failed (status: \(statusCode)): \(message)"
+        case .deepLinkResolutionFailed(let message):
+            return "Deep link resolution failed: \(message)"
+        case .deferredLinkFailed(let message):
+            return "Deferred link check failed: \(message)"
+        case .lastLinkDataLoadFailed(let message):
+            return "Failed to load last link data: \(message)"
+        }
+    }
+    
+    public var failureReason: String? {
+        return errorDescription
+    }
+    
+    public var recoverySuggestion: String? {
+        switch self {
+        case .bootstrapFailed:
+            return "Check your API key, network connection, and server availability. This is essential for SDK operation."
+        case .deepLinkResolutionFailed:
+            return "Verify the deep link URL is valid and the server is accessible."
+        case .deferredLinkFailed:
+            return "Check network connectivity. Deferred link matching requires server communication."
+        case .lastLinkDataLoadFailed:
+            return "Clear app data or check storage permissions. This may indicate corrupted persisted data."
+        }
+    }
+}
+
+// MARK: - ULinkError Convenience Extensions
+
+extension ULinkError {
+    /// Creates a bootstrap failed error
+    static func bootstrapFailed(statusCode: Int, message: String) -> ULinkInitializationError {
+        return .bootstrapFailed(statusCode: statusCode, message: message)
+    }
+    
+    /// Creates a deep link resolution failed error
+    static func deepLinkResolutionFailed(message: String) -> ULinkInitializationError {
+        return .deepLinkResolutionFailed(message: message)
+    }
+    
+    /// Creates a deferred link failed error
+    static func deferredLinkFailed(message: String) -> ULinkInitializationError {
+        return .deferredLinkFailed(message: message)
+    }
+    
+    /// Creates a last link data load failed error
+    static func lastLinkDataLoadFailed(message: String) -> ULinkInitializationError {
+        return .lastLinkDataLoadFailed(message: message)
+    }
+}
+
+/**
  * Error types for the ULink SDK
  */
 @objc public enum ULinkError: Int, Error, CaseIterable {

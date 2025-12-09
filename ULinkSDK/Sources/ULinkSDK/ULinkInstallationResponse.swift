@@ -25,6 +25,15 @@ import Foundation
     /// Installation ID that was tracked
     @objc public let installationId: String?
     
+    /// Whether this installation was detected as a reinstall
+    @objc public let isReinstall: Bool
+    
+    /// The ID of the previous installation if this is a reinstall
+    @objc public let previousInstallationId: String?
+    
+    /// Timestamp when the reinstall was detected (ISO 8601 format)
+    @objc public let reinstallDetectedAt: String?
+    
     /// Additional data returned from the server
     @objc public let data: [String: Any]?
     
@@ -45,6 +54,9 @@ import Foundation
         case installationToken = "installationToken"
         case sessionId = "sessionId"
         case installationId = "installationId"
+        case isReinstall = "isReinstall"
+        case previousInstallationId = "previousInstallationId"
+        case reinstallDetectedAt = "reinstallDetectedAt"
         case data
         case statusCode = "status_code"
         case timestamp
@@ -56,12 +68,18 @@ import Foundation
         installationToken: String? = nil,
         sessionId: String? = nil,
         installationId: String? = nil,
+        isReinstall: Bool = false,
+        previousInstallationId: String? = nil,
+        reinstallDetectedAt: String? = nil,
         data: [String: Any]? = nil,
         statusCode: Int = 200
     ) {
         self.installationToken = installationToken
         self.sessionId = sessionId
         self.installationId = installationId
+        self.isReinstall = isReinstall
+        self.previousInstallationId = previousInstallationId
+        self.reinstallDetectedAt = reinstallDetectedAt
         self.data = data
         self.statusCode = statusCode
         self.timestamp = Date()
@@ -76,6 +94,9 @@ import Foundation
         installationToken = try container.decodeIfPresent(String.self, forKey: .installationToken)
         sessionId = try container.decodeIfPresent(String.self, forKey: .sessionId)
         installationId = try container.decodeIfPresent(String.self, forKey: .installationId)
+        isReinstall = try container.decodeIfPresent(Bool.self, forKey: .isReinstall) ?? false
+        previousInstallationId = try container.decodeIfPresent(String.self, forKey: .previousInstallationId)
+        reinstallDetectedAt = try container.decodeIfPresent(String.self, forKey: .reinstallDetectedAt)
         statusCode = try container.decodeIfPresent(Int.self, forKey: .statusCode) ?? 200
         timestamp = try container.decodeIfPresent(Date.self, forKey: .timestamp) ?? Date()
         
@@ -107,6 +128,9 @@ import Foundation
         try container.encodeIfPresent(installationToken, forKey: .installationToken)
         try container.encodeIfPresent(sessionId, forKey: .sessionId)
         try container.encodeIfPresent(installationId, forKey: .installationId)
+        try container.encode(isReinstall, forKey: .isReinstall)
+        try container.encodeIfPresent(previousInstallationId, forKey: .previousInstallationId)
+        try container.encodeIfPresent(reinstallDetectedAt, forKey: .reinstallDetectedAt)
         try container.encode(statusCode, forKey: .statusCode)
         try container.encode(timestamp, forKey: .timestamp)
         
@@ -135,7 +159,8 @@ import Foundation
         var dict: [String: Any] = [
             "success": success,
             "statusCode": statusCode,
-            "timestamp": timestamp.timeIntervalSince1970
+            "timestamp": timestamp.timeIntervalSince1970,
+            "isReinstall": isReinstall
         ]
         
         if let installationToken = installationToken {
@@ -150,6 +175,14 @@ import Foundation
             dict["installationId"] = installationId
         }
         
+        if let previousInstallationId = previousInstallationId {
+            dict["previousInstallationId"] = previousInstallationId
+        }
+        
+        if let reinstallDetectedAt = reinstallDetectedAt {
+            dict["reinstallDetectedAt"] = reinstallDetectedAt
+        }
+        
         if let data = data {
             dict["data"] = data
         }
@@ -162,6 +195,9 @@ import Foundation
         let installationToken = dict["installationToken"] as? String
         let sessionId = dict["sessionId"] as? String
         let installationId = dict["installationId"] as? String
+        let isReinstall = dict["isReinstall"] as? Bool ?? false
+        let previousInstallationId = dict["previousInstallationId"] as? String
+        let reinstallDetectedAt = dict["reinstallDetectedAt"] as? String
         let data = dict["data"] as? [String: Any]
         let statusCode = dict["statusCode"] as? Int ?? 200
         
@@ -169,6 +205,9 @@ import Foundation
             installationToken: installationToken,
             sessionId: sessionId,
             installationId: installationId,
+            isReinstall: isReinstall,
+            previousInstallationId: previousInstallationId,
+            reinstallDetectedAt: reinstallDetectedAt,
             data: data,
             statusCode: statusCode
         )

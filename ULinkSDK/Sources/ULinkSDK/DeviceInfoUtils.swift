@@ -91,6 +91,7 @@ import UIKit
             
             // Device identifiers
             completeInfo["deviceId"] = deviceInfo["deviceId"] ?? ""
+            completeInfo["persistentDeviceId"] = DeviceInfoHelper.getPersistentDeviceId() ?? ""
             
             // Locale and timezone
             completeInfo["language"] = deviceInfo["language"] ?? ""

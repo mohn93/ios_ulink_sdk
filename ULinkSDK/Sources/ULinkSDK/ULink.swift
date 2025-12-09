@@ -27,7 +27,7 @@ import Combine
     
     // MARK: - Constants
     
-    private static let sdkVersion = "1.0.4"
+    private static let sdkVersion = "1.0.5"
     
     // MARK: - Error Handling Utility
     
@@ -60,9 +60,7 @@ import Combine
     
     private func handleSessionHTTPError(_ error: Error) -> ULinkSessionResponse {
          if let httpError = error as? ULinkHTTPError {
-             if config.debug {
-                 print("[ULink] Failed to start session: \(httpError)")
-             }
+             logError("Failed to start session: HTTP \(httpError.statusCode)")
              
              // Extract detailed HTTP error information
              var errorMessage = "HTTP error occurred (status: \(httpError.statusCode))"
@@ -87,18 +85,14 @@ import Combine
              
              return ULinkSessionResponse.error(errorMessage)
          } else {
-             if config.debug {
-                 print("[ULink] Failed to start session: \(error)")
-             }
+             logError("Failed to start session", error: error)
              return ULinkSessionResponse.error("Network error: \(error.localizedDescription)")
          }
      }
      
      private func handleInstallationHTTPError(_ error: Error) -> ULinkInstallationResponse {
          if let httpError = error as? ULinkHTTPError {
-             if config.debug {
-                 print("[ULink] Failed to track installation: \(httpError)")
-             }
+             logError("Failed to track installation: HTTP \(httpError.statusCode)")
              
              // Extract detailed HTTP error information
              var errorData: [String: Any] = [
@@ -140,9 +134,7 @@ import Combine
                  statusCode: httpError.statusCode
              )
          } else {
-             if config.debug {
-                 print("[ULink] Failed to track installation: \(error)")
-             }
+             logError("Failed to track installation", error: error)
              
              let errorData: [String: Any] = [
                  "errorMessage": "Network error: \(error.localizedDescription)",
@@ -174,6 +166,24 @@ import Combine
     }
     
     private static var _instance: ULink?
+    private static var isInitializing = false
+    
+    /// Actor for thread-safe initialization
+    private actor InitializationGuard {
+        private var isInitializing = false
+        
+        func startInitializing() -> Bool {
+            if isInitializing { return false }
+            isInitializing = true
+            return true
+        }
+        
+        func finishInitializing() {
+            isInitializing = false
+        }
+    }
+    
+    private static let initGuard = InitializationGuard()
     
     // MARK: - Properties
     
@@ -189,17 +199,97 @@ import Combine
     private var sessionState: SessionState = .idle
     private var sessionTask: Task<Void, Never>?
     private var sessionContinuation: CheckedContinuation<Void, Never>?
+    private var bootstrapCompleted: Bool = false
+    private var bootstrapSucceeded: Bool = false
+    
+    // Reinstall detection
+    private var _installationInfo: ULinkInstallationInfo?
+    private let _reinstallDetectedSubject = PassthroughSubject<ULinkInstallationInfo, Never>()
+    
+    /**
+     * Publisher that emits when a reinstall is detected during bootstrap.
+     * The emitted ULinkInstallationInfo contains details about the reinstall,
+     * including the previous installation ID.
+     */
+    public var onReinstallDetected: AnyPublisher<ULinkInstallationInfo, Never> {
+        return _reinstallDetectedSubject.eraseToAnyPublisher()
+    }
     
     // Streams for deep link handling
-    private let _dynamicLinkSubject = PassthroughSubject<ULinkResolvedData, Never>()
-    private let _unifiedLinkSubject = PassthroughSubject<ULinkResolvedData, Never>()
+    // Use CurrentValueSubject with replay support to match Android's SharedFlow behavior
+    // This ensures events sent before listeners subscribe are not lost
+    // The nil value is used to clear the buffer after emitting, allowing only the latest event to be replayed
+    private let _dynamicLinkSubject = CurrentValueSubject<ULinkResolvedData?, Never>(nil)
+    private let _unifiedLinkSubject = CurrentValueSubject<ULinkResolvedData?, Never>(nil)
     
     public var dynamicLinkStream: AnyPublisher<ULinkResolvedData, Never> {
-        return _dynamicLinkSubject.eraseToAnyPublisher()
+        return _dynamicLinkSubject
+            .compactMap { $0 } // Filter out nil values, only emit actual events
+            .eraseToAnyPublisher()
     }
     
     public var unifiedLinkStream: AnyPublisher<ULinkResolvedData, Never> {
-        return _unifiedLinkSubject.eraseToAnyPublisher()
+        return _unifiedLinkSubject
+            .compactMap { $0 } // Filter out nil values, only emit actual events
+            .eraseToAnyPublisher()
+    }
+    
+    // Log stream for debugging
+    private let _logSubject = PassthroughSubject<ULinkLogEntry, Never>()
+    private static let LOG_TAG = "ULink"
+    
+    /**
+     * Publisher that emits log entries from the SDK.
+     * Only emits when debug mode is enabled.
+     * Use this to capture SDK logs in your app for debugging.
+     */
+    public var logStream: AnyPublisher<ULinkLogEntry, Never> {
+        return _logSubject.eraseToAnyPublisher()
+    }
+    
+    // MARK: - Logging Methods
+    
+    /**
+     * Logs a debug message to both console and the log stream
+     */
+    private func logDebug(_ message: String, tag: String? = nil) {
+        guard config.debug else { return }
+        let logTag = tag ?? Self.LOG_TAG
+        print("[\(logTag)] DEBUG: \(message)")
+        _logSubject.send(ULinkLogEntry.debug(tag: logTag, message: message))
+    }
+    
+    /**
+     * Logs an info message to both console and the log stream
+     */
+    private func logInfo(_ message: String, tag: String? = nil) {
+        guard config.debug else { return }
+        let logTag = tag ?? Self.LOG_TAG
+        print("[\(logTag)] INFO: \(message)")
+        _logSubject.send(ULinkLogEntry.info(tag: logTag, message: message))
+    }
+    
+    /**
+     * Logs a warning message to both console and the log stream
+     */
+    private func logWarning(_ message: String, tag: String? = nil) {
+        let logTag = tag ?? Self.LOG_TAG
+        print("[\(logTag)] WARNING: \(message)")
+        if config.debug {
+            _logSubject.send(ULinkLogEntry.warning(tag: logTag, message: message))
+        }
+    }
+    
+    /**
+     * Logs an error message to both console and the log stream
+     */
+    private func logError(_ message: String, error: Error? = nil, tag: String? = nil) {
+        let logTag = tag ?? Self.LOG_TAG
+        let fullMessage = error != nil ? "\(message): \(error!.localizedDescription)" : message
+        print("[\(logTag)] ERROR: \(fullMessage)")
+        if config.debug {
+            _logSubject.send(ULinkLogEntry.error(tag: logTag, message: fullMessage))
+        }
     }
     
     // Legacy compatibility
@@ -223,36 +313,81 @@ import Combine
      * This method initializes the ULink SDK and performs the following actions:
      * 1. Creates a singleton instance with the provided configuration
      * 2. Retrieves or generates a unique installation ID
-     * 3. Tracks the installation with the server
+     * 3. Tracks the installation with the server (essential - throws on failure)
      * 4. Registers lifecycle observer for automatic session management
+     * 5. Handles initial deep link if `enableDeepLinkIntegration` is enabled (throws on failure)
+     * 6. Checks deferred links if `autoCheckDeferredLink` is enabled (throws on failure)
      *
-     * Sessions must be started manually by calling startSession() when needed.
+     * Sessions are started automatically during bootstrap.
      *
      * It should be called when your app starts, typically in your AppDelegate's
      * application(_:didFinishLaunchingWithOptions:) method.
      *
      * Example:
      * ```swift
-     *
-     * 
      * func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-     *     ULink.initialize(
-     *         config: ULinkConfig(
-     *             apiKey: "your_api_key",
-     *             baseUrl: "https://api.ulink.ly",
-     *             debug: true
-     *         )
-     *     )
+     *     Task {
+     *         do {
+     *             try await ULink.initialize(
+     *                 config: ULinkConfig(
+     *                     apiKey: "your_api_key",
+     *                     baseUrl: "https://api.ulink.ly",
+     *                     debug: true
+     *                 )
+     *             )
+     *         } catch {
+     *             print("ULink SDK initialization failed: \(error)")
+     *         }
+     *     }
      *     return true
      * }
      * ```
+     *
+     * - Parameter config: The SDK configuration
+     * - Returns: The initialized ULink instance
+     * - Throws: ULinkError if any essential operation fails based on configuration
      */
-    public static func initialize(config: ULinkConfig) async -> ULink {
-        
-        if _instance == nil {
-            _instance = ULink(config: config)
-            await _instance?.setup()
+    public static func initialize(config: ULinkConfig) async throws -> ULink {
+        // Fast path: already initialized successfully
+        if let instance = _instance, instance.bootstrapSucceeded {
+            return instance
         }
+        
+        // Check if another initialization is in progress
+        guard await initGuard.startInitializing() else {
+            // Another call is already initializing - wait and return existing instance
+            // Poll until initialization completes
+            while isInitializing {
+                try await Task.sleep(nanoseconds: 10_000_000) // 10ms
+            }
+            if let instance = _instance {
+                return instance
+            }
+            throw ULinkInitializationError.bootstrapFailed(statusCode: 0, message: "Initialization failed")
+        }
+        
+        defer {
+            Task { await initGuard.finishInitializing() }
+            isInitializing = false
+        }
+        isInitializing = true
+        
+        // Double-check after acquiring initialization rights
+        if let instance = _instance {
+            if instance.bootstrapSucceeded {
+                return instance
+            }
+            
+            // Bootstrap failed or didn't complete - retry
+            instance.bootstrapCompleted = false
+            instance.bootstrapSucceeded = false
+            try await instance.setup()
+            return instance
+        }
+        
+        // Create new instance
+        _instance = ULink(config: config)
+        try await _instance?.setup()
         return _instance!
     }
     
@@ -269,7 +404,9 @@ import Combine
     
     // MARK: - Setup
     
-    private func setup() async {
+    /// Sets up the SDK with error propagation for essential operations
+    /// - Throws: ULinkError for failures in essential operations based on configuration
+    private func setup() async throws {
         // Generate or load installation ID
         if installationId == nil {
             generateInstallationId()
@@ -278,27 +415,47 @@ import Combine
         // Load installation token
         loadInstallationToken()
         
-        // Load last link data
-        loadLastLinkData()
+        // Load last link data - throw if persistence is enabled and loading fails
+        if config.persistLastLinkData {
+            try loadLastLinkDataThrowing()
+        } else {
+            loadLastLinkData()
+        }
+        
+        // Log initialization
+        logInfo("ULink SDK initialized with API key: \(config.apiKey.prefix(20))...")
+        logDebug("Installation ID: \(installationId ?? "nil")")
+        logDebug("Installation Token: \(installationToken != nil ? "[LOADED]" : "[NOT FOUND]")")
+        logDebug("SDK Version: \(Self.sdkVersion)")
         
         // Register for app lifecycle notifications
         registerForLifecycleNotifications()
         
-        // Bootstrap (track installation and start session)
-        await bootstrap()
+        // Bootstrap (track installation and start session) - always essential
+        try await bootstrap()
         
         // Handle initial URL if automatic deep link integration is enabled
         if config.enableDeepLinkIntegration {
             if let initialUrl = initialUrl {
-                handleDeepLink(url: initialUrl)
+                // Await and throw if deep link integration is enabled
+                try await handleDeepLinkAsync(url: initialUrl)
             }
-        } else if config.debug, initialUrl != nil {
-            print("[ULink] Deep link integration disabled - initial URL will be ignored until handled manually")
+        } else if initialUrl != nil {
+            logDebug("Deep link integration disabled - initial URL will be ignored until handled manually")
         }
         
         // Check for deferred links after bootstrap completes (if enabled in config)
+        // Launch in background Task (don't await) to match Android behavior
+        // This ensures listeners can be set up before deferred link is processed
         if config.autoCheckDeferredLink {
-            checkDeferredLink()
+            Task {
+                do {
+            try await checkDeferredLinkAsync()
+                } catch {
+                    logError("Deferred link check failed", error: error)
+                    // Don't throw - deferred link check is not critical for initialization
+                }
+            }
         }
     }
     
@@ -306,6 +463,27 @@ import Combine
     
     @objc public func getInstallationId() -> String? {
         return installationId
+    }
+    
+    /**
+     * Gets the current installation info including reinstall detection data.
+     *
+     * If this is a reinstall, the returned object will have isReinstall=true
+     * and previousInstallationId will contain the ID of the previous installation.
+     *
+     * - Returns: ULinkInstallationInfo or nil if bootstrap hasn't completed
+     */
+    public func getInstallationInfo() -> ULinkInstallationInfo? {
+        return _installationInfo
+    }
+    
+    /**
+     * Checks if the current installation is a reinstall.
+     *
+     * - Returns: true if this installation was detected as a reinstall
+     */
+    @objc public func isReinstall() -> Bool {
+        return _installationInfo?.isReinstall ?? false
     }
     
     private func generateInstallationId() {
@@ -333,36 +511,100 @@ import Combine
     
     // MARK: - Bootstrap
     
-    private func bootstrap() async {
-        do {
-            let response = try await trackInstallation()
-            if response.success {
-                if let token = response.installationToken {
-                    saveInstallationToken(token)
-                }
-                
-                // Save session ID if returned from bootstrap
-                if let sessionId = response.sessionId {
-                    currentSessionId = sessionId
-                    sessionState = .active
-                    
-                    if config.debug {
-                        print("[ULink] Bootstrap session started: \(sessionId)")
-                    }
-                }
-                
-                if config.debug {
-                    print("[ULink] Bootstrap completed successfully. Installation token saved.")
-                }
+    /// Bootstrap the SDK by tracking installation and starting a session.
+    /// - Throws: ULinkError if bootstrap fails (essential for SDK operation)
+    private func bootstrap() async throws {
+        logDebug("Starting bootstrap...")
+        
+        let response = try await trackInstallationThrowing()
+        
+        logDebug("Bootstrap response received - success: \(response.success), statusCode: \(response.statusCode)")
+        logDebug("Bootstrap response - installationToken: \(response.installationToken != nil ? "[RECEIVED]" : "nil")")
+        logDebug("Bootstrap response - sessionId: \(response.sessionId ?? "nil")")
+        logDebug("Bootstrap response - isReinstall: \(response.isReinstall)")
+        
+        guard response.success else {
+            let errorMessage = "Bootstrap failed with status code: \(response.statusCode)"
+            logError(errorMessage)
+            bootstrapSucceeded = false
+            bootstrapCompleted = true
+            throw ULinkInitializationError.bootstrapFailed(statusCode: response.statusCode, message: errorMessage)
+        }
+        
+            if let token = response.installationToken {
+                saveInstallationToken(token)
+                logDebug("Installation token saved")
+            }
+            
+            // Save session ID if returned from bootstrap
+            if let sessionId = response.sessionId {
+                currentSessionId = sessionId
+                sessionState = .active
+                logInfo("Bootstrap session started: \(sessionId)")
             } else {
-                if config.debug {
-                    print("[ULink] Bootstrap failed with status code: \(response.statusCode)")
+                logWarning("Bootstrap succeeded but no sessionId returned - session state remains idle")
+            }
+            
+            // Parse and store installation info (including reinstall detection)
+            if let currentInstallationId = installationId {
+                let persistentDeviceId = DeviceInfoHelper.getPersistentDeviceId()
+                
+                // Create installation info from the response
+                let info = ULinkInstallationInfo(
+                    installationId: currentInstallationId,
+                    isReinstall: response.isReinstall,
+                    previousInstallationId: response.previousInstallationId,
+                    reinstallDetectedAt: response.reinstallDetectedAt,
+                    persistentDeviceId: persistentDeviceId
+                )
+                
+                _installationInfo = info
+                
+                // Emit reinstall event if detected
+                if info.isReinstall {
+                    logInfo("Reinstall detected! Previous installation: \(info.previousInstallationId ?? "unknown")")
+                    _reinstallDetectedSubject.send(info)
+                    logDebug("Installation info: isReinstall=true, previousInstallationId=\(info.previousInstallationId ?? "nil")")
                 }
             }
+            
+            logInfo("Bootstrap completed successfully")
+            bootstrapSucceeded = true
+        bootstrapCompleted = true
+        logDebug("Bootstrap completed - sessionState: \(sessionState), bootstrapSucceeded: \(bootstrapSucceeded)")
+    }
+    
+    /// Non-throwing version of bootstrap for lifecycle retry scenarios
+    private func bootstrapSilent() async {
+        do {
+            try await bootstrap()
         } catch {
-            if config.debug {
-                print("[ULink] Bootstrap error: \(error)")
-            }
+            logError("Bootstrap error (silent)", error: error)
+            bootstrapSucceeded = false
+            bootstrapCompleted = true
+        }
+    }
+    
+    // MARK: - Bootstrap Guard
+    
+    /// Ensures bootstrap has completed successfully before allowing SDK operations.
+    /// Call this at the start of any method that requires the SDK to be fully initialized.
+    /// - Throws: ULinkInitializationError if bootstrap hasn't completed or failed
+    private func ensureBootstrapCompleted() throws {
+        guard bootstrapCompleted else {
+            logError("SDK method called before initialization complete")
+            throw ULinkInitializationError.bootstrapFailed(
+                statusCode: 0,
+                message: "SDK initialization not complete. Ensure initialize() completes successfully before calling SDK methods."
+            )
+        }
+        
+        guard bootstrapSucceeded else {
+            logError("SDK method called after initialization failed")
+            throw ULinkInitializationError.bootstrapFailed(
+                statusCode: 0,
+                message: "SDK initialization failed. Check the error from initialize() method and retry initialization."
+            )
         }
     }
     
@@ -403,6 +645,11 @@ import Combine
             bootstrapData["timezone"] = timezone
         }
         
+        // Persistent device ID for reinstall detection (survives app reinstalls via Keychain)
+        if let persistentDeviceId = DeviceInfoHelper.getPersistentDeviceId() {
+            bootstrapData["persistentDeviceId"] = persistentDeviceId
+        }
+        
         // Add session-specific fields that match startSession
         if let networkType = deviceInfo["networkType"] as? String {
             bootstrapData["networkType"] = networkType
@@ -431,66 +678,47 @@ import Combine
         return bootstrapData
     }
     
+    /// Tracks installation with error propagation for essential bootstrap flow
+    /// - Throws: Error if the HTTP request fails or returns non-success status
+    private func trackInstallationThrowing() async throws -> ULinkInstallationResponse {
+        let body = await buildBootstrapBody()
+        
+        var headers = [
+            "X-App-Key": config.apiKey,
+            "Content-Type": "application/json",
+            "X-ULink-Client": "sdk-ios",
+            "X-ULink-Client-Version": ULink.sdkVersion,
+            "X-ULink-Client-Platform": "ios"
+        ]
+        
+        // Add installation token if available (like Flutter SDK)
+        if let installationToken = getInstallationToken(), !installationToken.isEmpty {
+            headers["X-Installation-Token"] = installationToken
+        }
+        
+        // Add installation ID if available
+        if let installationId = getInstallationId(), !installationId.isEmpty {
+            headers["X-Installation-Id"] = installationId
+        }
+        
+        // Add device ID if available (like Flutter SDK)
+        let deviceInfo = await DeviceInfoUtils.getCompleteDeviceInfo()
+        if let deviceId = deviceInfo["deviceId"] as? String, !deviceId.isEmpty {
+            headers["X-Device-Id"] = deviceId
+        }
+        
+        let response: ULinkInstallationResponse = try await httpClient.post(
+            url: "\(config.baseUrl)/sdk/bootstrap",
+            body: body,
+            headers: headers
+        )
+        
+            return response
+    }
+    
     private func trackInstallation() async -> ULinkInstallationResponse {
         do {
-            let body = await buildBootstrapBody()
-            
-            var headers = [
-                "X-App-Key": config.apiKey,
-                "Content-Type": "application/json",
-                "X-ULink-Client": "sdk-ios",
-                "X-ULink-Client-Version": ULink.sdkVersion,
-                "X-ULink-Client-Platform": "ios"
-            ]
-            
-            // Add installation token if available (like Flutter SDK)
-            if let installationToken = getInstallationToken(), !installationToken.isEmpty {
-                headers["X-Installation-Token"] = installationToken
-            }
-            
-            // Add installation ID if available
-            if let installationId = getInstallationId(), !installationId.isEmpty {
-                headers["X-Installation-Id"] = installationId
-            }
-            
-            // Add device ID if available (like Flutter SDK)
-            let deviceInfo = await DeviceInfoUtils.getCompleteDeviceInfo()
-            if let deviceId = deviceInfo["deviceId"] as? String, !deviceId.isEmpty {
-                headers["X-Device-Id"] = deviceId
-            }
-            
-            let response: ULinkInstallationResponse = try await httpClient.post(
-                url: "\(config.baseUrl)/sdk/bootstrap",
-                body: body,
-                headers: headers
-            )
-            
-            // Check if the response indicates success
-            if response.success {
-                return response
-            } else {
-                // Extract error message from response data if available
-                let errorMessage: String
-                if let data = response.data,
-                   let message = data["errorMessage"] as? String {
-                    errorMessage = message
-                } else {
-                    errorMessage = "Unknown error occurred"
-                }
-                
-                let errorData: [String: Any] = [
-                    "errorMessage": errorMessage,
-                    "statusCode": response.statusCode
-                ]
-                
-                return ULinkInstallationResponse(
-                    installationToken: nil,
-                    sessionId: nil,
-                    installationId: nil,
-                    data: errorData,
-                    statusCode: response.statusCode
-                )
-            }
+            return try await trackInstallationThrowing()
         } catch {
             return handleInstallationHTTPError(error)
         }
@@ -498,54 +726,70 @@ import Combine
     
     // MARK: - Deep Link Handling
     
+    /// Handles a deep link (fire-and-forget version for backward compatibility)
     @objc public func handleDeepLink(url: URL, isDeferred: Bool = false, matchType: String? = nil) {
-        if config.debug {
-            print("[ULink] Handling deep link: \(url.absoluteString) (isDeferred: \(isDeferred), matchType: \(matchType ?? "nil"))")
+        Task {
+            do {
+                try await handleDeepLinkAsync(url: url, isDeferred: isDeferred, matchType: matchType)
+            } catch {
+                logError("Failed to handle deep link", error: error)
+            }
+        }
+    }
+    
+    /// Handles a deep link with async/await support
+    /// - Parameters:
+    ///   - url: The deep link URL to handle
+    ///   - isDeferred: Whether this is a deferred deep link
+    ///   - matchType: The match type for deferred links
+    /// - Throws: ULinkError if the deep link resolution fails
+    public func handleDeepLinkAsync(url: URL, isDeferred: Bool = false, matchType: String? = nil) async throws {
+        logDebug("Handling deep link: \(url.absoluteString) (isDeferred: \(isDeferred), matchType: \(matchType ?? "nil"))")
+        
+        guard var resolvedData = try await processULinkUrlThrowing(url) else {
+            logDebug("URL is not a ULink or resolution returned nil")
+            return
         }
         
-        Task {
-            if var resolvedData = await processULinkUrl(url) {
-                // Inject isDeferred and matchType if this came from deferred deep linking
-                if isDeferred {
-                    resolvedData = ULinkResolvedData(
-                        slug: resolvedData.slug,
-                        iosFallbackUrl: resolvedData.iosFallbackUrl,
-                        androidFallbackUrl: resolvedData.androidFallbackUrl,
-                        fallbackUrl: resolvedData.fallbackUrl,
-                        iosUrl: resolvedData.iosUrl,
-                        androidUrl: resolvedData.androidUrl,
-                        parameters: resolvedData.parameters,
-                        socialMediaTags: resolvedData.socialMediaTags,
-                        metadata: resolvedData.metadata,
-                        type: resolvedData.type,
-                        isDeferred: true,
-                        matchType: matchType,
-                        resolvedAt: resolvedData.resolvedAt,
-                        rawData: resolvedData.rawData
-                    )
-                }
-                
-                // Determine link type and emit to appropriate stream
-                if resolvedData.type == "unified" {
-                    _unifiedLinkSubject.send(resolvedData)
-                } else {
-                    _dynamicLinkSubject.send(resolvedData)
-                }
-                
-                // Save last link data if persistence is enabled
-                if config.persistLastLinkData {
-                    saveLastLinkData(resolvedData)
-                }
-            }
+        // Inject isDeferred and matchType if this came from deferred deep linking
+        if isDeferred {
+            resolvedData = ULinkResolvedData(
+                slug: resolvedData.slug,
+                iosFallbackUrl: resolvedData.iosFallbackUrl,
+                androidFallbackUrl: resolvedData.androidFallbackUrl,
+                fallbackUrl: resolvedData.fallbackUrl,
+                iosUrl: resolvedData.iosUrl,
+                androidUrl: resolvedData.androidUrl,
+                parameters: resolvedData.parameters,
+                socialMediaTags: resolvedData.socialMediaTags,
+                metadata: resolvedData.metadata,
+                type: resolvedData.type,
+                isDeferred: true,
+                matchType: matchType,
+                resolvedAt: resolvedData.resolvedAt,
+                rawData: resolvedData.rawData
+            )
+        }
+        
+        // Determine link type and emit to appropriate stream
+        // CurrentValueSubject stores the value, allowing new subscribers to receive it
+        // The value is kept until the next event overwrites it (replay of latest event)
+        if resolvedData.type == "unified" {
+            _unifiedLinkSubject.send(resolvedData)
+        } else {
+            _dynamicLinkSubject.send(resolvedData)
+        }
+        
+        // Save last link data if persistence is enabled
+        if config.persistLastLinkData {
+            saveLastLinkData(resolvedData)
         }
     }
     
     @objc public func setInitialUrl(_ url: URL?) {
         initialUrl = url
         if let url = url {
-            if config.debug {
-                print("[ULink] Initial URL set: \(url.absoluteString)")
-            }
+            logDebug("Initial URL set: \(url.absoluteString)")
         }
     }
     
@@ -554,10 +798,7 @@ import Combine
     }
     
     @objc public func handleIncomingURL(_ url: URL) -> Bool {
-        if config.debug {
-            print("[ULink] Handling incoming URL: \(url.absoluteString)")
-        }
-        
+        logDebug("Handling incoming URL: \(url.absoluteString)")
         
         // Handle the deep link
         handleDeepLink(url: url)
@@ -568,42 +809,37 @@ import Combine
     
     public func processULinkUrl(_ url: URL) async -> ULinkResolvedData? {
         do {
-            if config.debug {
-                print("[ULink] Processing URL: \(url.absoluteString)")
-            }
-            
-            // Always try to resolve the URL with the server to determine if it's a ULink
-            if config.debug {
-                print("[ULink] Querying server to resolve URL...")
-            }
+            return try await processULinkUrlThrowing(url)
+        } catch {
+            logError("Error processing ULink URL", error: error)
+            return nil
+        }
+    }
+    
+    /// Processes a ULink URL with error propagation
+    /// - Parameter url: The URL to process
+    /// - Returns: Resolved data if successful, nil if URL is not a ULink
+    /// - Throws: Error if the resolution request fails
+    public func processULinkUrlThrowing(_ url: URL) async throws -> ULinkResolvedData? {
+            logDebug("Processing URL: \(url.absoluteString)")
+            logDebug("Querying server to resolve URL...")
             
             let resolveResponse = try await resolveLink(url: url.absoluteString)
             
             // Check if the response was successful before processing data
             if !resolveResponse.success {
-                if config.debug {
-                    print("[ULink] Server returned error: \(resolveResponse.error ?? "Unknown error")")
-                }
-                return nil
+            let errorMessage = resolveResponse.error ?? "Unknown error"
+            logWarning("Server returned error: \(errorMessage)")
+            throw ULinkInitializationError.deepLinkResolutionFailed(message: errorMessage)
             }
             
             if let responseData = resolveResponse.data,
                let resolvedData = ULinkResolvedData.fromDictionary(responseData) {
-                if config.debug {
-                    print("[ULink] Successfully resolved ULink data: \(resolvedData.rawData ?? [:])")
-                }
+                logInfo("Successfully resolved ULink data")
+                logDebug("Resolved data: \(resolvedData.rawData ?? [:])")
                 return resolvedData
             } else {
-                // URL is not a ULink or resolution failed
-                if config.debug {
-                    print("[ULink] URL is not a ULink or resolution failed")
-                }
-                return nil
-            }
-        } catch {
-            if config.debug {
-                print("[ULink] Error processing ULink URL: \(error)")
-            }
+                logDebug("URL is not a ULink or resolution failed")
             return nil
         }
     }
@@ -625,6 +861,9 @@ import Combine
     // MARK: - Link Creation
     
     public func createLink(parameters: ULinkParameters) async throws -> ULinkResponse {
+        // Ensure SDK is fully initialized before creating links
+        try ensureBootstrapCompleted()
+        
         let body = parameters.toJson()
         
         var headers = [
@@ -718,6 +957,9 @@ import Combine
     }
     
     public func resolveLink(url: String) async throws -> ULinkResponse {
+        // Ensure SDK is fully initialized before resolving links
+        try ensureBootstrapCompleted()
+        
         guard let encodedUrl = url.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else {
             return ULinkResponse.error(message: "Invalid URL provided", data: nil)
         }
@@ -885,7 +1127,7 @@ import Combine
             // Add device info to metadata if not explicitly provided
             if metadata == nil || metadata!["deviceInfo"] == nil {
                 // Filter out properties that are already included in the session object
-                var filteredDeviceInfo = deviceInfo
+                let filteredDeviceInfo = deviceInfo
             
                 if !filteredDeviceInfo.isEmpty {
                     sessionMetadata["deviceInfo"] = filteredDeviceInfo
@@ -916,10 +1158,7 @@ import Combine
             if response.success, let sessionId = response.sessionId {
                 currentSessionId = sessionId
                 sessionState = .active
-                
-                if config.debug {
-                    print("[ULink] Session started: \(sessionId)")
-                }
+                logInfo("Session started: \(sessionId)")
                 
                 // Complete any waiting session continuation
                 sessionContinuation?.resume()
@@ -975,18 +1214,12 @@ import Combine
             
             currentSessionId = nil
             sessionState = .idle
-            
-            if config.debug {
-                print("[ULink] Session ended: \(sessionId)")
-            }
+            logInfo("Session ended: \(sessionId)")
             
             return true
         } catch {
             sessionState = .failed
-            
-            if config.debug {
-                print("[ULink] Failed to end session: \(error)")
-            }
+            logError("Failed to end session", error: error)
             
             return false
         }
@@ -1062,25 +1295,34 @@ import Combine
     }
     
     private func handleAppDidBecomeActive() {
-        if sessionState == .idle {
-            if config.debug {
-                print("[ULink] App became active - starting new session")
-            }
+        logDebug("App became active - sessionState: \(sessionState), bootstrapCompleted: \(bootstrapCompleted), bootstrapSucceeded: \(bootstrapSucceeded)")
+        
+        // If bootstrap hasn't completed yet, skip (it will finish on its own)
+        guard bootstrapCompleted else {
+            logDebug("App became active but bootstrap not yet completed - skipping")
+            return
+        }
+        
+        // If session is already active, nothing to do
+        if sessionState == .active {
+            logDebug("App became active with active session - nothing to do")
+            return
+        }
+        
+        // If bootstrap failed previously (e.g., due to network permission dialog), retry it
+        // Bootstrap returns a sessionId, so we don't need a separate startSession call
+        // Use silent version for lifecycle retry to avoid crashing the app
+        if !bootstrapSucceeded || sessionState == .idle || sessionState == .failed {
+            logInfo("App became active - retrying bootstrap (previous bootstrapSucceeded: \(bootstrapSucceeded), sessionState: \(sessionState))")
             Task {
-                do {
-                    let response = try await startSession()
-                    if config.debug {
-                        if response.success {
-                            print("[ULink] New session started on app resume: \(currentSessionId ?? "unknown")")
-                        } else {
-                            print("[ULink] Failed to start session on app resume: \(response.error ?? "unknown error")")
-                        }
-                    }
-                } catch {
-                    if config.debug {
-                        print("[ULink] Error starting session on app resume: \(error)")
-                    }
-                }
+                // Reset state before retrying
+                sessionState = .idle
+                bootstrapSucceeded = false
+                
+                // Use silent version for lifecycle retry (errors are logged but not thrown)
+                await bootstrapSilent()
+                
+                    logDebug("Bootstrap retry completed - sessionState: \(sessionState), bootstrapSucceeded: \(bootstrapSucceeded)")
             }
         }
         
@@ -1090,24 +1332,20 @@ import Combine
                 handleDeepLink(url: initialUrl)
                 self.initialUrl = nil // Clear after processing
             }
-        } else if config.debug, initialUrl != nil {
-            print("[ULink] Deep link integration disabled - pending initial URL will not be processed automatically")
+        } else if initialUrl != nil {
+            logDebug("Deep link integration disabled - pending initial URL will not be processed automatically")
         }
     }
     
     private func handleAppDidEnterBackground() {
         if hasActiveSession() {
-            if config.debug {
-                print("[ULink] App entered background - ending session")
-            }
+            logDebug("App entered background - ending session")
             Task {
                 let success = await endSession()
-                if config.debug {
-                    if success {
-                        print("[ULink] Session ended on app background")
-                    } else {
-                        print("[ULink] Failed to end session on app background")
-                    }
+                if success {
+                    logInfo("Session ended on app background")
+                } else {
+                    logWarning("Failed to end session on app background")
                 }
             }
         }
@@ -1129,15 +1367,13 @@ import Combine
         guard config.persistLastLinkData else { return }
         
         do {
-            let sanitizedData = sanitizeLastLinkData(data)
-            let jsonData = try JSONEncoder().encode(sanitizedData)
-            userDefaults.set(jsonData, forKey: Self.keyLastLinkData)
-            userDefaults.set(Date().timeIntervalSince1970, forKey: Self.keyLastLinkSavedAt)
-            lastLinkData = data
+        let sanitizedData = sanitizeLastLinkData(data)
+        let jsonData = try JSONEncoder().encode(sanitizedData)
+        userDefaults.set(jsonData, forKey: Self.keyLastLinkData)
+        userDefaults.set(Date().timeIntervalSince1970, forKey: Self.keyLastLinkSavedAt)
+        lastLinkData = data
         } catch {
-            if config.debug {
-                print("[ULink] Error saving last link data: \(error)")
-            }
+            logError("Error saving last link data", error: error)
         }
     }
     
@@ -1193,10 +1429,20 @@ import Combine
         )
     }
     
+    /// Loads persisted last link data (non-throwing version for backward compatibility)
     private func loadLastLinkData() {
+        do {
+            try loadLastLinkDataThrowing()
+        } catch {
+            logError("Error loading last link data", error: error)
+        }
+    }
+    
+    /// Loads persisted last link data with error propagation
+    /// - Throws: ULinkError if loading fails and persistLastLinkData is enabled
+    private func loadLastLinkDataThrowing() throws {
         guard let jsonData = userDefaults.data(forKey: Self.keyLastLinkData) else { return }
         
-        do {
             let data = try JSONDecoder().decode(ULinkResolvedData.self, from: jsonData)
             
             // Check TTL if configured
@@ -1214,21 +1460,13 @@ import Combine
             // Clear on read if configured
             if config.clearLastLinkOnRead {
                 clearPersistedLastLink()
-            }
-        } catch {
-            if config.debug {
-                print("[ULink] Error loading last link data: \(error)")
-            }
         }
     }
     
     private func clearPersistedLastLink() {
         userDefaults.removeObject(forKey: Self.keyLastLinkData)
         userDefaults.removeObject(forKey: Self.keyLastLinkSavedAt)
-        
-        if config.debug {
-            print("[ULink] Cleared persisted last link data")
-        }
+        logDebug("Cleared persisted last link data")
     }
     
     // MARK: - Cleanup
@@ -1239,21 +1477,35 @@ import Combine
             _ = await endSession()
         }
     }
+    /// Checks for deferred deep links (fire-and-forget version for backward compatibility)
     @objc public func checkDeferredLink() {
+        Task {
+            do {
+                try await checkDeferredLinkAsync()
+            } catch {
+                logError("Deferred link check failed", error: error)
+            }
+        }
+    }
+    
+    /// Checks for deferred deep links with async/await support
+    /// - Throws: ULinkError if the deferred link check fails when autoCheckDeferredLink is enabled
+    public func checkDeferredLinkAsync() async throws {
+        // Ensure SDK is fully initialized before checking deferred links
+        try ensureBootstrapCompleted()
+        
+        #if canImport(UIKit)
         let defaults = UserDefaults.standard
         if defaults.bool(forKey: "ulink_deferred_checked") {
-            if config.debug {
-                print("[ULink] Deferred link check skipped: already checked")
-            }
+            logDebug("Deferred link check skipped: already checked")
             return
         }
         
-        if config.debug {
-            print("[ULink] Checking for deferred link...")
-        }
+        logDebug("Checking for deferred link...")
         
-        // Collect fingerprint
-        var fingerprint: [String: Any] = [
+        // Collect fingerprint (must be done on main actor for UIKit access)
+        let fingerprint: [String: Any] = await MainActor.run {
+            var fp: [String: Any] = [
             "os": "ios",
             "model": UIDevice.current.model,
             "name": UIDevice.current.name,
@@ -1262,85 +1514,92 @@ import Combine
         ]
         
         if let identifier = UIDevice.current.identifierForVendor?.uuidString {
-            fingerprint["identifierForVendor"] = identifier
+                fp["identifierForVendor"] = identifier
         }
         
-        // Add common fields for browser matching
         // Screen Resolution
         let screen = UIScreen.main
         let width = Int(screen.bounds.width)
         let height = Int(screen.bounds.height)
-        fingerprint["screenResolution"] = "\(width)x\(height)"
+            fp["screenResolution"] = "\(width)x\(height)"
         
         // Timezone
-        fingerprint["timezone"] = TimeZone.current.identifier
+            fp["timezone"] = TimeZone.current.identifier
         
         // Language
         if let language = Locale.preferredLanguages.first {
-            fingerprint["language"] = language.replacingOccurrences(of: "_", with: "-")
+                fp["language"] = language.replacingOccurrences(of: "_", with: "-")
         } else {
-            fingerprint["language"] = Locale.current.identifier.replacingOccurrences(of: "_", with: "-")
+                fp["language"] = Locale.current.identifier.replacingOccurrences(of: "_", with: "-")
+            }
+            
+            return fp
         }
         
-        if config.debug {
-            print("[ULink] Deferred link fingerprint: \(fingerprint)")
-        }
+        logDebug("Deferred link fingerprint: \(fingerprint)")
         
-        // Call API
-        guard let url = URL(string: "https://api.ulink.ly/sdk/deferred/match") else { return }
+        // Call API using async/await
+        let urlString = "\(config.baseUrl)/sdk/deferred/match"
+        guard let url = URL(string: urlString) else {
+            throw ULinkInitializationError.deferredLinkFailed(message: "Invalid deferred link URL: \(urlString)")
+        }
         
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue(self.config.apiKey, forHTTPHeaderField: "X-App-Key")
+        request.setValue(config.apiKey, forHTTPHeaderField: "X-App-Key")
         
-        let body: [String: Any] = ["fingerprint": fingerprint]
-        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        var body: [String: Any] = ["fingerprint": fingerprint]
         
-        URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
-            if let error = error {
-                if self?.config.debug == true {
-                    print("[ULink] Deferred link check failed: \(error.localizedDescription)")
-                }
-                return
-            }
+        // Include installation ID for attribution
+        if let installationId = self.installationId {
+            body["installationId"] = installationId
+        }
+        
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        
+        let (data, response) = try await URLSession.shared.data(for: request)
+        
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw ULinkInitializationError.deferredLinkFailed(message: "Invalid response from deferred link API")
+        }
+        
+        guard (200...299).contains(httpResponse.statusCode) else {
+            throw ULinkInitializationError.deferredLinkFailed(message: "Deferred link API returned status \(httpResponse.statusCode)")
+        }
+        
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            throw ULinkInitializationError.deferredLinkFailed(message: "Failed to parse deferred link response")
+        }
+        
+        logDebug("Deferred link response: \(json)")
+        
+        // Check success flag
+        let isSuccess = json["success"] as? Bool ?? false
+        
+        if isSuccess,
+           let dataDict = json["data"] as? [String: Any] {
             
-            if let data = data,
-               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                
-                if self?.config.debug == true {
-                    print("[ULink] Deferred link response: \(json)")
-                }
-                
-                // Check success flag
-                let isSuccess = json["success"] as? Bool ?? false
-                
-                if isSuccess,
-                   let dataDict = json["data"] as? [String: Any] {
-                    
-                    let matchType = json["matchType"] as? String
-                    
-                    if let deepLink = dataDict["deepLink"] as? String {
-                        // Handle the deep link
-                        if self?.config.debug == true {
-                             print("[ULink] Matched deferred link: \(deepLink) (matchType: \(matchType ?? "nil"))")
-                        }
-                        
-                        // If we have a deep link, we should process it with deferred flag
-                        if let url = URL(string: deepLink) {
-                            self?.handleDeepLink(url: url, isDeferred: true, matchType: matchType)
-                        }
-                    } else {
-                        if self?.config.debug == true {
-                            print("[ULink] Deferred link matched but no deepLink found in data")
-                        }
-                    }
-                } else if self?.config.debug == true {
-                    print("[ULink] No deferred link matched")
-                }
-            }
+            let matchType = json["matchType"] as? String
             
-            defaults.set(true, forKey: "ulink_deferred_checked")
-        }.resume()
+            if let deepLink = dataDict["deepLink"] as? String {
+                // Handle the deep link
+                logInfo("Matched deferred link: \(deepLink) (matchType: \(matchType ?? "nil"))")
+                
+                // If we have a deep link, we should process it with deferred flag
+                if let linkUrl = URL(string: deepLink) {
+                    try await handleDeepLinkAsync(url: linkUrl, isDeferred: true, matchType: matchType)
+                }
+            } else {
+                logDebug("Deferred link matched but no deepLink found in data")
+            }
+        } else {
+            logDebug("No deferred link matched")
+        }
+        
+        defaults.set(true, forKey: "ulink_deferred_checked")
+        #else
+        logDebug("Deferred link check skipped: UIKit not available")
+        #endif
     }
 }
