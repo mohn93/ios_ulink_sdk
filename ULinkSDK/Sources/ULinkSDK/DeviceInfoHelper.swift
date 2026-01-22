@@ -360,7 +360,7 @@ import CoreTelephony
      * Gets the SDK version
      */
     @objc public static func getSDKVersion() -> String {
-        return "1.0.5" // This should match your SDK version
+        return "1.0.6" // This should match your SDK version
     }
     
     /**

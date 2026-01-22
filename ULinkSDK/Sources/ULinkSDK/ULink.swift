@@ -27,7 +27,7 @@ import Combine
     
     // MARK: - Constants
     
-    private static let sdkVersion = "1.0.5"
+    private static let sdkVersion = "1.0.6"
     
     // MARK: - Error Handling Utility
     
