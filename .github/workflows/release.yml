@@ -1,0 +1,134 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      # Extract version from tag (v1.0.6 -> 1.0.6)
+      - name: Extract version
+        id: version
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+
+      # Update version in all source files from tag
+      - name: Update version from tag
+        run: |
+          VERSION="${{ steps.version.outputs.VERSION }}"
+          echo "Setting version to $VERSION from tag..."
+
+          # Update ULinkSDK.podspec
+          sed -i '' "s/spec.version[[:space:]]*=[[:space:]]*[\"'][^\"']*[\"']/spec.version      = \"$VERSION\"/" ULinkSDK.podspec
+          echo "✅ Updated ULinkSDK.podspec"
+
+          # Update ULink.swift
+          sed -i '' "s/private static let sdkVersion = \"[^\"]*\"/private static let sdkVersion = \"$VERSION\"/" ULinkSDK/Sources/ULinkSDK/ULink.swift
+          echo "✅ Updated ULink.swift"
+
+          # Update DeviceInfoHelper.swift
+          sed -i '' "s/return \"[^\"]*\" \/\/ This should match your SDK version/return \"$VERSION\" \/\/ This should match your SDK version/" ULinkSDK/Sources/ULinkSDK/DeviceInfoHelper.swift
+          echo "✅ Updated DeviceInfoHelper.swift"
+
+          # Update README.md
+          sed -i '' "s/pod 'ULinkSDK', '~> [^']*'/pod 'ULinkSDK', '~> $VERSION'/" README.md
+          sed -i '' "s/from: \"[^\"]*\"/from: \"$VERSION\"/" README.md
+          sed -i '' "s/Select version \`[^\`]*\` or later/Select version \`$VERSION\` or later/" README.md
+          echo "✅ Updated README.md"
+
+          echo ""
+          echo "All files updated to version $VERSION"
+
+      # Commit version updates back to repo
+      - name: Commit version updates
+        run: |
+          VERSION="${{ steps.version.outputs.VERSION }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Check if there are changes to commit
+          if git diff --quiet; then
+            echo "No version changes needed (already at $VERSION)"
+          else
+            git add -A
+            git commit -m "chore: bump version to $VERSION [skip ci]"
+
+            # Push to the default branch
+            DEFAULT_BRANCH=$(git remote show origin | grep 'HEAD branch' | cut -d' ' -f5)
+            git push origin HEAD:$DEFAULT_BRANCH
+            echo "✅ Version update committed and pushed"
+          fi
+
+      # Update tag to point to new commit (with version updates)
+      - name: Update tag
+        run: |
+          VERSION="${{ steps.version.outputs.VERSION }}"
+          TAG_NAME="v$VERSION"
+
+          # Delete and recreate tag at current commit
+          git tag -d "$TAG_NAME" 2>/dev/null || true
+          git push origin :refs/tags/"$TAG_NAME" 2>/dev/null || true
+          git tag "$TAG_NAME"
+          git push origin "$TAG_NAME"
+          echo "✅ Tag $TAG_NAME updated to include version changes"
+
+      # Setup Xcode
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+
+      # Run Swift tests
+      - name: Run tests
+        run: |
+          cd ULinkSDK
+          swift test
+
+      # Install CocoaPods
+      - name: Install CocoaPods
+        run: gem install cocoapods
+
+      # Lint podspec
+      - name: Lint podspec
+        run: pod lib lint --allow-warnings
+
+      # Check if version already exists on CocoaPods
+      - name: Check CocoaPods version
+        run: |
+          VERSION="${{ steps.version.outputs.VERSION }}"
+          if pod trunk info ULinkSDK 2>/dev/null | grep -q "ULinkSDK ($VERSION)"; then
+            echo "❌ ERROR: Version $VERSION already exists in CocoaPods trunk!"
+            exit 1
+          fi
+          echo "✅ Version $VERSION is available for publishing"
+
+      # Publish to CocoaPods trunk
+      - name: Publish to CocoaPods
+        env:
+          COCOAPODS_TRUNK_TOKEN: ${{ secrets.COCOAPODS_TRUNK_TOKEN }}
+        run: pod trunk push ULinkSDK.podspec --allow-warnings
+
+      # Create GitHub Release (also enables SPM distribution via tag)
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          generate_release_notes: true
+          body: |
+            ## Installation
+
+            ### Swift Package Manager
+            ```swift
+            .package(url: "https://github.com/mohn93/ios_ulink_sdk.git", from: "${{ steps.version.outputs.VERSION }}")
+            ```
+
+            ### CocoaPods
+            ```ruby
+            pod 'ULinkSDK', '~> ${{ steps.version.outputs.VERSION }}'
+            ```
