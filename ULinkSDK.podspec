@@ -16,7 +16,7 @@ Pod::Spec.new do |spec|
   spec.homepage     = "https://github.com/mohn93/ios_ulink_sdk"
   spec.license      = { :type => "MIT", :file => "LICENSE" }
   spec.author       = { "ULink" => "support@ulink.ly" }
-  spec.source       = { :git => 'https://github.com/mohn93/ios_ulink_sdk.git', :tag => spec.version.to_s }
+  spec.source       = { :git => 'https://github.com/mohn93/ios_ulink_sdk.git', :tag => "v#{spec.version}" }
 
   spec.ios.deployment_target = "13.0"
   spec.swift_version = "5.0"
