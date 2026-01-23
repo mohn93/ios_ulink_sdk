@@ -60,21 +60,27 @@ In your `AppDelegate.swift`:
 import ULinkSDK
 
 func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-    
+
     let config = ULinkConfig(
         apiKey: "your-api-key-here",
         debug: true,
-        enableDeepLinkIntegration: true,
+        enableDeepLinkIntegration: true
     )
-    
-    let ulink = ULink.initialize(config: config)
-    
-    // Handle link resolution
-    ulink.onLink.sink { resolvedData in
-        print("Resolved link: \(resolvedData.slug ?? "unknown")")
-        // Handle the resolved link data
-    }.store(in: &cancellables)
-    
+
+    Task {
+        do {
+            let ulink = try await ULink.initialize(config: config)
+
+            // Handle link resolution
+            ulink.dynamicLinkStream.sink { resolvedData in
+                print("Resolved link: \(resolvedData.slug ?? "unknown")")
+                // Handle the resolved link data
+            }.store(in: &cancellables)
+        } catch {
+            print("Failed to initialize ULink: \(error)")
+        }
+    }
+
     return true
 }
 ```
@@ -103,15 +109,16 @@ func application(_ application: UIApplication, continue userActivity: NSUserActi
 
 ```swift
 let parameters = ULinkParameters.dynamic(
+    domain: "links.shared.ly",
     slug: "my-dynamic-link",
     iosFallbackUrl: "https://apps.apple.com/app/myapp",
     androidFallbackUrl: "https://play.google.com/store/apps/details?id=com.myapp",
     fallbackUrl: "https://myapp.com",
     parameters: ["userId": "12345", "campaign": "summer2024"],
     socialMediaTags: SocialMediaTags(
-        title: "Check out this awesome app!",
-        description: "Download our app for the best experience",
-        imageUrl: "https://myapp.com/share-image.png"
+        ogTitle: "Check out this awesome app!",
+        ogDescription: "Download our app for the best experience",
+        ogImage: "https://myapp.com/share-image.png"
     )
 )
 
@@ -129,6 +136,7 @@ Task {
 
 ```swift
 let parameters = ULinkParameters.unified(
+    domain: "links.shared.ly",
     slug: "my-unified-link",
     iosUrl: "myapp://content/123",
     androidUrl: "myapp://content/123",
@@ -149,14 +157,14 @@ Task {
 
 ```swift
 // Using Combine
-ULink.shared.onLink.sink { resolvedData in
+ULink.shared.dynamicLinkStream.sink { resolvedData in
     // Handle dynamic links
     if let slug = resolvedData.slug {
         navigateToContent(slug: slug, parameters: resolvedData.parameters)
     }
 }.store(in: &cancellables)
 
-ULink.shared.onUnifiedLink.sink { resolvedData in
+ULink.shared.unifiedLinkStream.sink { resolvedData in
     // Handle unified links
     if let iosUrl = resolvedData.iosUrl {
         handleDeepLink(url: iosUrl)
@@ -176,9 +184,10 @@ The `ULinkConfig` class provides various configuration options:
 ```swift
 let config = ULinkConfig(
     apiKey: "your-api-key",                    // Required: Your ULink API key
-    baseUrl: "https://api.ulink.com",          // API base URL
+    baseUrl: "https://api.ulink.ly",           // API base URL
     debug: true,                               // Enable debug logging
     enableDeepLinkIntegration: true,           // Enable automatic deep link handling
+    autoCheckDeferredLink: true,               // Automatically check for deferred links on first launch
     persistLastLinkData: true,                 // Persist last resolved link
     lastLinkTimeToLive: 3600,                  // TTL for persisted link (seconds)
     clearLastLinkOnRead: false,                // Clear link data after reading
@@ -268,18 +277,27 @@ Main SDK class providing all functionality.
 
 #### Methods
 
-- `initialize(config:)` - Initialize the SDK
+- `initialize(config:)` - Initialize the SDK (async throws)
 - `createLink(parameters:)` - Create a dynamic or unified link
 - `resolveLink(url:)` - Resolve a ULink URL
 - `handleIncomingURL(_:)` - Handle incoming URLs
 - `getLastLinkData()` - Get last resolved link data
-- `clearLastResolvedLink()` - Clear persisted link data
+- `getInitialDeepLink()` - Get initial deep link that launched the app
+- `getInstallationId()` - Get the installation ID
+- `getInstallationInfo()` - Get installation info including reinstall detection
+- `isReinstall()` - Check if current installation is a reinstall
+- `hasActiveSession()` - Check if there's an active session
+- `getCurrentSessionId()` - Get the current session ID
+- `getSessionState()` - Get the current session state
 
 #### Properties
 
-- `onLink` - Publisher for dynamic link resolution events
-- `onUnifiedLink` - Publisher for unified link resolution events
-- `isInitialized` - Whether SDK is initialized
+- `dynamicLinkStream` - Publisher for dynamic link resolution events
+- `unifiedLinkStream` - Publisher for unified link resolution events
+- `onReinstallDetected` - Publisher that emits when a reinstall is detected
+- `logStream` - Publisher for SDK log entries (debug mode only)
+
+> **Note:** `onLink` and `onUnifiedLink` are deprecated aliases for `dynamicLinkStream` and `unifiedLinkStream` respectively. They are retained for backward compatibility but new code should use the newer names.
 
 ### ULinkConfig
 
@@ -302,4 +320,4 @@ MIT License. See LICENSE file for details.
 
 ## Support
 
-For support, please contact support@ulink.ly or visit our documentation at https://docs.ulink.com
+For support, please contact support@ulink.ly or visit our documentation at https://docs.ulink.ly
