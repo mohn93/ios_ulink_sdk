@@ -75,24 +75,30 @@ class ULinkTestViewModel: ObservableObject {
         )
         
         Task {
-            await ULink.initialize(config: config)
+            do {
+                try await ULink.initialize(config: config)
 
-            
-            // Check if a session was automatically started and capture its ID
-            if let currentSessionId = ULink.shared.getCurrentSessionId() {
-                await MainActor.run {
-                    self.sessionId = currentSessionId
-                    self.status = "ULink SDK initialized with session: \(currentSessionId)"
-                    self.isInitialized = true
-                    self.isLoading = false
-                    self.setupDeepLinkCallbacks()
+                // Check if a session was automatically started and capture its ID
+                if let currentSessionId = ULink.shared.getCurrentSessionId() {
+                    await MainActor.run {
+                        self.sessionId = currentSessionId
+                        self.status = "ULink SDK initialized with session: \(currentSessionId)"
+                        self.isInitialized = true
+                        self.isLoading = false
+                        self.setupDeepLinkCallbacks()
+                    }
+                } else {
+                    await MainActor.run {
+                        self.status = "ULink SDK initialized"
+                        self.isInitialized = true
+                        self.isLoading = false
+                        self.setupDeepLinkCallbacks()
+                    }
                 }
-            } else {
+            } catch {
                 await MainActor.run {
-                    self.status = "ULink SDK initialized"
-                    self.isInitialized = true
+                    self.errorMessage = "Failed to initialize ULink: \(error.localizedDescription)"
                     self.isLoading = false
-                    self.setupDeepLinkCallbacks()
                 }
             }
         }

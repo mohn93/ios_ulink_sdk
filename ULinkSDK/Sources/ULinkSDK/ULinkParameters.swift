@@ -105,6 +105,11 @@ import Foundation
      * Optional custom slug for the link
      */
     @objc public let slug: String?
+
+    /**
+     * Optional human-readable name for the link (shown in the dashboard)
+     */
+    @objc public let name: String?
     
     /**
      * iOS URL for unified links (direct iOS app store or web URL)
@@ -160,6 +165,7 @@ import Foundation
         type: String,
         domain: String,
         slug: String? = nil,
+        name: String? = nil,
         iosUrl: String? = nil,
         androidUrl: String? = nil,
         iosFallbackUrl: String? = nil,
@@ -172,6 +178,7 @@ import Foundation
         self.type = type
         self.domain = domain
         self.slug = slug
+        self.name = name
         self.iosUrl = iosUrl
         self.androidUrl = androidUrl
         self.iosFallbackUrl = iosFallbackUrl
@@ -199,6 +206,7 @@ import Foundation
     @objc public static func dynamic(
         domain: String,
         slug: String? = nil,
+        name: String? = nil,
         iosFallbackUrl: String? = nil,
         androidFallbackUrl: String? = nil,
         fallbackUrl: String? = nil,
@@ -210,6 +218,7 @@ import Foundation
             type: ULinkType.dynamic.stringValue,
             domain: domain,
             slug: slug,
+            name: name,
             iosFallbackUrl: iosFallbackUrl,
             androidFallbackUrl: androidFallbackUrl,
             fallbackUrl: fallbackUrl,
@@ -235,6 +244,7 @@ import Foundation
     @objc public static func unified(
         domain: String,
         slug: String? = nil,
+        name: String? = nil,
         iosUrl: String,
         androidUrl: String,
         fallbackUrl: String,
@@ -246,6 +256,7 @@ import Foundation
             type: ULinkType.unified.stringValue,
             domain: domain,
             slug: slug,
+            name: name,
             iosUrl: iosUrl,
             androidUrl: androidUrl,
             fallbackUrl: fallbackUrl,
@@ -267,6 +278,9 @@ import Foundation
         
         if let slug = slug {
             data["slug"] = slug
+        }
+        if let name = name {
+            data["name"] = name
         }
         if let iosUrl = iosUrl {
             data["iosUrl"] = iosUrl
