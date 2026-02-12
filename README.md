@@ -62,7 +62,7 @@ import ULinkSDK
 func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
 
     let config = ULinkConfig(
-        apiKey: "your-api-key-here",
+        apiKey: "your-api-key",
         debug: true,
         enableDeepLinkIntegration: true
     )
@@ -184,7 +184,6 @@ The `ULinkConfig` class provides various configuration options:
 ```swift
 let config = ULinkConfig(
     apiKey: "your-api-key",                    // Required: Your ULink API key
-    baseUrl: "https://api.ulink.ly",           // API base URL
     debug: true,                               // Enable debug logging
     enableDeepLinkIntegration: true,           // Enable automatic deep link handling
     autoCheckDeferredLink: true,               // Automatically check for deferred links on first launch
