@@ -1,6 +1,6 @@
 Pod::Spec.new do |spec|
   spec.name         = "ULinkSDK"
-  spec.version      = "1.0.7"
+  spec.version      = "1.0.8"
   spec.summary      = "ULink iOS SDK for creating and managing deep links"
   spec.description  = <<-DESC
                       ULink iOS SDK provides a comprehensive solution for creating, managing, and handling deep links in iOS applications.
