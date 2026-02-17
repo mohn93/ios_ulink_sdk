@@ -236,94 +236,59 @@ import Combine
     
     // Log stream for debugging
     private let _logSubject = PassthroughSubject<ULinkLogEntry, Never>()
-    private var _logBuffer: [ULinkLogEntry] = []
-    private static let LOG_BUFFER_SIZE = 50
     private static let LOG_TAG = "ULink"
-
+    
     /**
      * Publisher that emits log entries from the SDK.
      * Only emits when debug mode is enabled.
      * Use this to capture SDK logs in your app for debugging.
-     *
-     * New subscribers receive up to the last 50 buffered log entries
-     * before receiving live updates, matching Android SDK behavior.
      */
     public var logStream: AnyPublisher<ULinkLogEntry, Never> {
-        let replay = Just(_logBuffer)
-            .flatMap { entries in
-                Publishers.Sequence(sequence: entries)
-            }
-        return replay
-            .append(_logSubject)
-            .eraseToAnyPublisher()
+        return _logSubject.eraseToAnyPublisher()
     }
     
     // MARK: - Logging Methods
-
+    
     /**
-     * Appends a log entry to the replay buffer, evicting oldest entries when full.
-     */
-    private func bufferLogEntry(_ entry: ULinkLogEntry) {
-        _logBuffer.append(entry)
-        if _logBuffer.count > Self.LOG_BUFFER_SIZE {
-            _logBuffer.removeFirst(_logBuffer.count - Self.LOG_BUFFER_SIZE)
-        }
-    }
-
-    /**
-     * Logs a debug message to both console and the log stream.
-     * Uses NSLog so output is visible in Flutter's debug console on iOS.
+     * Logs a debug message to both console and the log stream
      */
     private func logDebug(_ message: String, tag: String? = nil) {
         guard config.debug else { return }
         let logTag = tag ?? Self.LOG_TAG
-        NSLog("[%@] DEBUG: %@", logTag, message)
-        let entry = ULinkLogEntry.debug(tag: logTag, message: message)
-        bufferLogEntry(entry)
-        _logSubject.send(entry)
+        print("[\(logTag)] DEBUG: \(message)")
+        _logSubject.send(ULinkLogEntry.debug(tag: logTag, message: message))
     }
-
+    
     /**
-     * Logs an info message to both console and the log stream.
-     * Uses NSLog so output is visible in Flutter's debug console on iOS.
+     * Logs an info message to both console and the log stream
      */
     private func logInfo(_ message: String, tag: String? = nil) {
         guard config.debug else { return }
         let logTag = tag ?? Self.LOG_TAG
-        NSLog("[%@] INFO: %@", logTag, message)
-        let entry = ULinkLogEntry.info(tag: logTag, message: message)
-        bufferLogEntry(entry)
-        _logSubject.send(entry)
+        print("[\(logTag)] INFO: \(message)")
+        _logSubject.send(ULinkLogEntry.info(tag: logTag, message: message))
     }
-
+    
     /**
-     * Logs a warning message to both console and the log stream.
-     * Warnings always log to console; they only emit to the stream when debug is enabled.
-     * Uses NSLog so output is visible in Flutter's debug console on iOS.
+     * Logs a warning message to both console and the log stream
      */
     private func logWarning(_ message: String, tag: String? = nil) {
         let logTag = tag ?? Self.LOG_TAG
-        NSLog("[%@] WARNING: %@", logTag, message)
+        print("[\(logTag)] WARNING: \(message)")
         if config.debug {
-            let entry = ULinkLogEntry.warning(tag: logTag, message: message)
-            bufferLogEntry(entry)
-            _logSubject.send(entry)
+            _logSubject.send(ULinkLogEntry.warning(tag: logTag, message: message))
         }
     }
-
+    
     /**
-     * Logs an error message to both console and the log stream.
-     * Errors always log to console; they only emit to the stream when debug is enabled.
-     * Uses NSLog so output is visible in Flutter's debug console on iOS.
+     * Logs an error message to both console and the log stream
      */
     private func logError(_ message: String, error: Error? = nil, tag: String? = nil) {
         let logTag = tag ?? Self.LOG_TAG
         let fullMessage = error != nil ? "\(message): \(error!.localizedDescription)" : message
-        NSLog("[%@] ERROR: %@", logTag, fullMessage)
+        print("[\(logTag)] ERROR: \(fullMessage)")
         if config.debug {
-            let entry = ULinkLogEntry.error(tag: logTag, message: fullMessage)
-            bufferLogEntry(entry)
-            _logSubject.send(entry)
+            _logSubject.send(ULinkLogEntry.error(tag: logTag, message: fullMessage))
         }
     }
     
