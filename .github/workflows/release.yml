@@ -87,9 +87,7 @@ jobs:
 
       # Run Swift tests
       - name: Run tests
-        run: |
-          cd ULinkSDK
-          swift test
+        run: swift test
 
       # Install CocoaPods
       - name: Install CocoaPods
