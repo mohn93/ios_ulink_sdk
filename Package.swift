@@ -24,5 +24,6 @@ let package = Package(
             dependencies: ["ULinkSDK"],
             path: "ULinkSDK/Tests/ULinkSDKTests"
         ),
-    ]
+    ],
+    swiftLanguageVersions: [.v5]
 )
