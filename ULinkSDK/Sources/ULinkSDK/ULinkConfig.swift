@@ -19,7 +19,8 @@ import Foundation
     @objc public let apiKey: String
     
     /**
-     * The base URL for the ULink API
+     * Internal use only. Defaults to the production ULink API.
+     * You do not need to set this — it is used for local development and testing.
      */
     @objc public let baseUrl: String
     
@@ -70,7 +71,7 @@ import Foundation
      *
      * - Parameters:
      *   - apiKey: The API key for the ULink service
-     *   - baseUrl: The base URL for the ULink API (defaults to "https://api.ulink.ly")
+     *   - baseUrl: Internal use only. Defaults to the production API. You do not need to set this.
      *   - debug: Whether to use debug mode (defaults to false)
      *   - enableDeepLinkIntegration: Whether to enable automatic deep link integration (defaults to true)
      *   - persistLastLinkData: Whether to persist the last resolved link (defaults to true)

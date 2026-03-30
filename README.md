@@ -26,7 +26,7 @@ The ULink iOS SDK provides a comprehensive solution for creating, managing, and 
 Add the following line to your `Podfile`:
 
 ```ruby
-pod 'ULinkSDK', '~> 1.0.6'
+pod 'ULinkSDK', '~> 1.0.9'
 ```
 
 Then run:
@@ -41,14 +41,14 @@ Add the following dependency to your `Package.swift`:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/mohn93/ios_ulink_sdk.git", from: "1.0.6")
+    .package(url: "https://github.com/mohn93/ios_ulink_sdk.git", from: "1.0.9")
 ]
 ```
 
 Or add it through Xcode:
 1. File → Add Package Dependencies
 2. Enter the repository URL: `https://github.com/mohn93/ios_ulink_sdk.git`
-3. Select version `1.0.6` or later
+3. Select version `1.0.9` or later
 
 ## Quick Start
 
@@ -62,7 +62,7 @@ import ULinkSDK
 func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
 
     let config = ULinkConfig(
-        apiKey: "your-api-key-here",
+        apiKey: "your-api-key",
         debug: true,
         enableDeepLinkIntegration: true
     )
@@ -184,7 +184,6 @@ The `ULinkConfig` class provides various configuration options:
 ```swift
 let config = ULinkConfig(
     apiKey: "your-api-key",                    // Required: Your ULink API key
-    baseUrl: "https://api.ulink.ly",           // API base URL
     debug: true,                               // Enable debug logging
     enableDeepLinkIntegration: true,           // Enable automatic deep link handling
     autoCheckDeferredLink: true,               // Automatically check for deferred links on first launch

@@ -4,7 +4,7 @@
 <dict>
 	<key>com.apple.developer.associated-domains</key>
 	<array>
-		<string>applinks:goldpass.shared.ly</string>
+		<string>applinks:shadd.shared.ly</string>
 	</array>
 </dict>
 </plist>
