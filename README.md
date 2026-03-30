@@ -50,6 +50,8 @@ Or add it through Xcode:
 2. Enter the repository URL: `https://github.com/mohn93/ios_ulink_sdk.git`
 3. Select version `1.0.10` or later
 
+> **Note:** Swift Package Manager support requires version `1.0.10` or later. Earlier versions do not include a root `Package.swift` or lack Xcode 26 compatibility and will fail to resolve.
+
 ## Quick Start
 
 ### 1. Initialize the SDK

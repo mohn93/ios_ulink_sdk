@@ -48,38 +48,27 @@ jobs:
           echo ""
           echo "All files updated to version $VERSION"
 
-      # Commit version updates back to repo
-      - name: Commit version updates
+      # Commit version updates to tag only (not to any branch)
+      - name: Commit version updates to tag
         run: |
           VERSION="${{ steps.version.outputs.VERSION }}"
+          TAG_NAME="v$VERSION"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          # Check if there are changes to commit
           if git diff --quiet; then
             echo "No version changes needed (already at $VERSION)"
           else
             git add -A
             git commit -m "chore: bump version to $VERSION [skip ci]"
 
-            # Push to the default branch
-            DEFAULT_BRANCH=$(git remote show origin | grep 'HEAD branch' | cut -d' ' -f5)
-            git push origin HEAD:$DEFAULT_BRANCH
-            echo "✅ Version update committed and pushed"
+            # Update tag to include version changes, but do NOT push to any branch
+            git tag -d "$TAG_NAME" 2>/dev/null || true
+            git push origin :refs/tags/"$TAG_NAME" 2>/dev/null || true
+            git tag "$TAG_NAME"
+            git push origin "$TAG_NAME"
+            echo "✅ Tag $TAG_NAME updated with version changes (no branch push)"
           fi
-
-      # Update tag to point to new commit (with version updates)
-      - name: Update tag
-        run: |
-          VERSION="${{ steps.version.outputs.VERSION }}"
-          TAG_NAME="v$VERSION"
-
-          # Delete and recreate tag at current commit
-          git tag -d "$TAG_NAME" 2>/dev/null || true
-          git push origin :refs/tags/"$TAG_NAME" 2>/dev/null || true
-          git tag "$TAG_NAME"
-          git push origin "$TAG_NAME"
-          echo "✅ Tag $TAG_NAME updated to include version changes"
 
       # Setup Xcode
       - name: Select Xcode
