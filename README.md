@@ -26,7 +26,7 @@ The ULink iOS SDK provides a comprehensive solution for creating, managing, and 
 Add the following line to your `Podfile`:
 
 ```ruby
-pod 'ULinkSDK', '~> 1.0.10'
+pod 'ULinkSDK', '~> 1.0.11'
 ```
 
 Then run:
@@ -41,14 +41,14 @@ Add the following dependency to your `Package.swift`:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/mohn93/ios_ulink_sdk.git", from: "1.0.10")
+    .package(url: "https://github.com/mohn93/ios_ulink_sdk.git", from: "1.0.11")
 ]
 ```
 
 Or add it through Xcode:
 1. File → Add Package Dependencies
 2. Enter the repository URL: `https://github.com/mohn93/ios_ulink_sdk.git`
-3. Select version `1.0.10` or later
+3. Select version `1.0.11` or later
 
 > **Note:** Swift Package Manager support requires version `1.0.10` or later. Earlier versions do not include a root `Package.swift` or lack Xcode 26 compatibility and will fail to resolve.
 
