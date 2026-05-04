@@ -13,6 +13,16 @@ The ULink iOS SDK provides a comprehensive solution for creating, managing, and 
 - **Persistence**: Optional persistence of last resolved link data
 - **Combine Integration**: Reactive streams for link resolution events
 
+## AI-Assisted Setup
+
+Using Claude Code, Cursor, Codex, or another AI coding agent? Install the ULink onboarding skill in one command:
+
+```bash
+npx skills add https://ulink.ly
+```
+
+Then ask your assistant to **"setup ulink"** — it'll detect your Xcode project, configure your ULink dashboard, set up Associated Domains and URL schemes in `Info.plist`, and verify Universal Links. Works with 50+ AI agents via the [open agent-skills CLI](https://github.com/vercel-labs/skills). [Learn more →](https://docs.ulink.ly/getting-started/ai-setup)
+
 ## Requirements
 
 - iOS 13.0+
