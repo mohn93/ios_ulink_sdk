@@ -99,6 +99,48 @@ final class ULinkSDKTests: XCTestCase {
         XCTAssertEqual(json["type"] as? String, "dynamic")
     }
 
+    func testUnifiedLinkSerializesExternalId() throws {
+        let params = ULinkParameters.unified(
+            domain: "example.shared.ly",
+            iosUrl: "https://apps.apple.com/app/test",
+            androidUrl: "https://play.google.com/store/apps/details?id=test",
+            fallbackUrl: "https://example.com",
+            externalId: "share:user:123:post:456"
+        )
+
+        XCTAssertEqual(params.externalId, "share:user:123:post:456")
+        XCTAssertEqual(params.toJson()["externalId"] as? String, "share:user:123:post:456")
+    }
+
+    func testUnifiedLinkOmitsExternalIdWhenNil() throws {
+        let params = ULinkParameters.unified(
+            domain: "example.shared.ly",
+            iosUrl: "https://apps.apple.com/app/test",
+            androidUrl: "https://play.google.com/store/apps/details?id=test",
+            fallbackUrl: "https://example.com"
+        )
+
+        XCTAssertNil(params.externalId)
+        XCTAssertNil(params.toJson()["externalId"])
+    }
+
+    func testDynamicLinkSerializesExternalId() throws {
+        let params = ULinkParameters.dynamic(
+            domain: "example.shared.ly",
+            externalId: "campaign:summer-sale-2026"
+        )
+
+        XCTAssertEqual(params.externalId, "campaign:summer-sale-2026")
+        XCTAssertEqual(params.toJson()["externalId"] as? String, "campaign:summer-sale-2026")
+    }
+
+    func testDynamicLinkOmitsExternalIdWhenNil() throws {
+        let params = ULinkParameters.dynamic(domain: "example.shared.ly")
+
+        XCTAssertNil(params.externalId)
+        XCTAssertNil(params.toJson()["externalId"])
+    }
+
     // MARK: - ULinkResolvedData Tests
 
     func testULinkResolvedDataInitialization() throws {
