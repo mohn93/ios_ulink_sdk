@@ -211,6 +211,7 @@ import Foundation
      *   - parameters: Additional parameters
      *   - socialMediaTags: Social media tags
      *   - metadata: Metadata
+     *   - externalId: Optional deterministic key from your system (e.g. `share:user:123:post:456`). When set, ULink scopes the key to your project and returns the existing link on repeat calls instead of creating a duplicate.
      * - Returns: ULinkParameters configured for dynamic links
      */
     @objc public static func dynamic(
@@ -251,6 +252,7 @@ import Foundation
      *   - parameters: Additional parameters
      *   - socialMediaTags: Social media tags
      *   - metadata: Metadata
+     *   - externalId: Optional deterministic key from your system (e.g. `share:user:123:post:456`). When set, ULink scopes the key to your project and returns the existing link on repeat calls instead of creating a duplicate.
      * - Returns: ULinkParameters configured for unified links
      */
     @objc public static func unified(
