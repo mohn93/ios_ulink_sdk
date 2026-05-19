@@ -157,7 +157,15 @@ import Foundation
      * when projects have multiple domains configured.
      */
     @objc public let domain: String
-    
+
+    /**
+     * Optional caller-supplied identifier used to make link creation idempotent.
+     * When set, ULink scopes the key to your project and returns the existing
+     * link on repeat calls instead of creating a duplicate. Pick a deterministic
+     * key from your system, e.g. `share:user:123:post:456`.
+     */
+    @objc public let externalId: String?
+
     /**
      * Private initializer for ULinkParameters
      */
@@ -173,7 +181,8 @@ import Foundation
         fallbackUrl: String? = nil,
         parameters: [String: Any]? = nil,
         socialMediaTags: SocialMediaTags? = nil,
-        metadata: [String: Any]? = nil
+        metadata: [String: Any]? = nil,
+        externalId: String? = nil
     ) {
         self.type = type
         self.domain = domain
@@ -187,6 +196,7 @@ import Foundation
         self.parameters = parameters
         self.socialMediaTags = socialMediaTags
         self.metadata = metadata
+        self.externalId = externalId
         super.init()
     }
     
@@ -212,7 +222,8 @@ import Foundation
         fallbackUrl: String? = nil,
         parameters: [String: Any]? = nil,
         socialMediaTags: SocialMediaTags? = nil,
-        metadata: [String: Any]? = nil
+        metadata: [String: Any]? = nil,
+        externalId: String? = nil
     ) -> ULinkParameters {
         return ULinkParameters(
             type: ULinkType.dynamic.stringValue,
@@ -224,7 +235,8 @@ import Foundation
             fallbackUrl: fallbackUrl,
             parameters: parameters,
             socialMediaTags: socialMediaTags,
-            metadata: metadata
+            metadata: metadata,
+            externalId: externalId
         )
     }
     
@@ -250,7 +262,8 @@ import Foundation
         fallbackUrl: String,
         parameters: [String: Any]? = nil,
         socialMediaTags: SocialMediaTags? = nil,
-        metadata: [String: Any]? = nil
+        metadata: [String: Any]? = nil,
+        externalId: String? = nil
     ) -> ULinkParameters {
         return ULinkParameters(
             type: ULinkType.unified.stringValue,
@@ -262,7 +275,8 @@ import Foundation
             fallbackUrl: fallbackUrl,
             parameters: parameters,
             socialMediaTags: socialMediaTags,
-            metadata: metadata
+            metadata: metadata,
+            externalId: externalId
         )
     }
     
@@ -297,7 +311,10 @@ import Foundation
         if let fallbackUrl = fallbackUrl {
             data["fallbackUrl"] = fallbackUrl
         }
-        
+        if let externalId = externalId {
+            data["externalId"] = externalId
+        }
+
         // Handle regular parameters (non-social media)
         if let parameters = parameters {
             var regularParameters: [String: Any] = [:]
