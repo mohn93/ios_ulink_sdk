@@ -207,6 +207,18 @@ if let lastLink = ULink.shared.getLastLinkData() {
 }
 ```
 
+### Query Parameter Passthrough
+
+When a link has **`allowQueryPassthrough`** enabled (set via the ULink dashboard, REST API, or MCP — not a field in `ULinkParameters`), any query params appended to the link URL at click time (e.g. `?orderId=123`) are merged into the link's `parameters` before delivery. Passthrough values override stored params with the same key and always arrive as strings. This works on both direct app open and after a deferred install — no SDK changes needed.
+
+```swift
+ulink.dynamicLinkStream.sink { data in
+    let orderId = data.parameters?["orderId"] as? String // e.g. "123"
+}.store(in: &cancellables)
+```
+
+> **Note:** Passthrough values always arrive as strings and override any stored param with the same key. Enable `allowQueryPassthrough` on the link via the dashboard or REST API.
+
 ## Configuration
 
 The `ULinkConfig` class provides various configuration options:
