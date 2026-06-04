@@ -367,7 +367,7 @@
 /* Begin XCLocalSwiftPackageReference section */
 		8C638E822E828FF000B12A2A /* XCLocalSwiftPackageReference "../../ULinkSDK" */ = {
 			isa = XCLocalSwiftPackageReference;
-			relativePath = ../../ULinkSDK;
+			relativePath = ../..;
 		};
 /* End XCLocalSwiftPackageReference section */
 

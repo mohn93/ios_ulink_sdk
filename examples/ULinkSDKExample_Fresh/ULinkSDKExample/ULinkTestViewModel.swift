@@ -104,33 +104,6 @@ class ULinkTestViewModel: ObservableObject {
         }
     }
     
-    func startSession() {
-        guard isInitialized else {
-            self.errorMessage = "ULink not initialized"
-            return
-        }
-        
-        self.isLoading = true
-        self.errorMessage = ""
-        
-        Task {
-            do {
-                let response = try await ULink.shared.startSession()
-                
-                if response.success {
-                    self.sessionId = response.sessionId ?? ""
-                    self.status = "Session started: \(response.sessionId)"
-                } else {
-                    self.errorMessage = "Failed to start session"
-                }
-                self.isLoading = false
-            } catch {
-                self.errorMessage = "Error starting session: \(error.localizedDescription)"
-                self.isLoading = false
-            }
-        }
-    }
-    
     func resolveLink(_ url: String) {
         guard isInitialized else {
             self.errorMessage = "ULink not initialized"
@@ -298,29 +271,4 @@ class ULinkTestViewModel: ObservableObject {
         }
     }
     
-    func trackInstallation() {
-        guard isInitialized else {
-            self.errorMessage = "ULink not initialized"
-            return
-        }
-        
-        self.isLoading = true
-        self.errorMessage = ""
-        
-        Task {
-            do {
-                let response = try await ULink.shared.trackInstallation()
-                
-                if response.success {
-                    self.status = "Installation tracked: \(response.installationToken ?? "No token")"
-                } else {
-                    self.errorMessage = "Failed to track installation"
-                }
-                self.isLoading = false
-            } catch {
-                self.errorMessage = "Error tracking installation: \(error.localizedDescription)"
-                self.isLoading = false
-            }
-        }
-    }
 }

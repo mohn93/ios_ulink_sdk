@@ -97,13 +97,7 @@ struct ContentView: View {
                             Text("Session Management")
                                 .font(.headline)
                                 .padding(.top)
-                            
-                            Button("Start Session") {
-                                viewModel.startSession()
-                            }
-                            .buttonStyle(.bordered)
-                            .disabled(viewModel.isLoading || !viewModel.isInitialized)
-                            
+
                             Button("End Session") {
                                 viewModel.endSession()
                             }
@@ -144,12 +138,6 @@ struct ContentView: View {
                             
                             Button("Test Error Handling") {
                                 viewModel.testErrorHandling()
-                            }
-                            .buttonStyle(.bordered)
-                            .disabled(viewModel.isLoading || !viewModel.isInitialized)
-                            
-                            Button("Track Installation") {
-                                viewModel.trackInstallation()
                             }
                             .buttonStyle(.bordered)
                             .disabled(viewModel.isLoading || !viewModel.isInitialized)
