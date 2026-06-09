@@ -390,6 +390,86 @@ final class ULinkSDKTests: XCTestCase {
         XCTAssertNil(json["ogImage"])
     }
 
+    // MARK: - Resolve URL Encoding Tests
+
+    /// Helper mirroring the server's query parsing: parse the resolve URL and
+    /// return the value the server's `@Query('url')` handler would receive plus
+    /// any *sibling* query params that leaked out of an unencoded `url` value.
+    private func serverView(of resolveUrl: String) -> (url: String?, siblingKeys: [String]) {
+        guard let components = URLComponents(string: resolveUrl) else {
+            return (nil, [])
+        }
+        let items = components.queryItems ?? []
+        let url = items.first(where: { $0.name == "url" })?.value
+        let siblings = items.map { $0.name }.filter { $0 != "url" }
+        return (url, siblings)
+    }
+
+    /// Regression test for the iOS-only "only the first query param survives" bug.
+    /// A deep link's appended query params (`?app=poc&screen=product&id=123&...`)
+    /// must be preserved when the URL is embedded in `/sdk/resolve?url=...`.
+    func testBuildResolveURLPreservesAllAppendedQueryParams() throws {
+        let baseUrl = "https://api.ulink.ly"
+        let link = "https://testulink.shared.ly/inapp?app=poc&screen=product&id=123&category=books"
+
+        let resolveUrl = try XCTUnwrap(ULink.buildResolveURL(baseUrl: baseUrl, url: link))
+
+        // The server must see exactly one `url` param, equal to the full link,
+        // and NO leaked sibling params (screen/id/category).
+        let (urlParam, siblingKeys) = serverView(of: resolveUrl)
+        XCTAssertEqual(urlParam, link, "Embedded url value must round-trip with all query params intact")
+        XCTAssertTrue(siblingKeys.isEmpty, "No appended params should leak as sibling query params, got: \(siblingKeys)")
+    }
+
+    /// The raw encoded substring must not contain bare `&`/`=` from the embedded
+    /// link — those are exactly the characters that broke server-side parsing.
+    func testBuildResolveURLPercentEncodesReservedDelimiters() throws {
+        let baseUrl = "https://api.ulink.ly"
+        let link = "https://testulink.shared.ly/inapp?app=poc&screen=product&id=123"
+
+        let resolveUrl = try XCTUnwrap(ULink.buildResolveURL(baseUrl: baseUrl, url: link))
+
+        // Strip the fixed prefix; what remains is the encoded url value.
+        let prefix = "\(baseUrl)/sdk/resolve?url="
+        let encoded = try XCTUnwrap(resolveUrl.hasPrefix(prefix) ? String(resolveUrl.dropFirst(prefix.count)) : nil)
+
+        XCTAssertFalse(encoded.contains("&"), "Ampersands from the embedded link must be percent-encoded")
+        XCTAssertTrue(encoded.contains("%26"), "Ampersand should be encoded as %26")
+        XCTAssertTrue(encoded.contains("%3F"), "Question mark should be encoded as %3F")
+        XCTAssertTrue(encoded.contains("%3D"), "Equals sign should be encoded as %3D")
+    }
+
+    func testEncodeQueryValueEncodesPlusAndAmpersand() throws {
+        // `.urlQueryAllowed` would leave `&` and `+` untouched; our stricter set
+        // must encode both so values survive transport without being mangled.
+        let value = "a=1&b=2+3"
+        let encoded = try XCTUnwrap(value.addingPercentEncoding(withAllowedCharacters: ULink.urlQueryValueAllowed))
+
+        XCTAssertFalse(encoded.contains("&"))
+        XCTAssertFalse(encoded.contains("+"))
+        XCTAssertTrue(encoded.contains("%26")) // &
+        XCTAssertTrue(encoded.contains("%2B")) // +
+    }
+
+    func testBuildResolveURLWithNoQueryParams() throws {
+        let resolveUrl = try XCTUnwrap(
+            ULink.buildResolveURL(baseUrl: "https://api.ulink.ly", url: "https://testulink.shared.ly/inapp")
+        )
+
+        let (urlParam, siblingKeys) = serverView(of: resolveUrl)
+        XCTAssertEqual(urlParam, "https://testulink.shared.ly/inapp")
+        XCTAssertTrue(siblingKeys.isEmpty)
+    }
+
+    func testBuildResolveURLWithDeepLinkScheme() throws {
+        let link = "myapp://inapp?app=poc&screen=product"
+        let resolveUrl = try XCTUnwrap(ULink.buildResolveURL(baseUrl: "https://api.ulink.ly", url: link))
+
+        let (urlParam, siblingKeys) = serverView(of: resolveUrl)
+        XCTAssertEqual(urlParam, link)
+        XCTAssertTrue(siblingKeys.isEmpty)
+    }
+
     // MARK: - Performance Tests
 
     func testPerformanceDeviceInfo() throws {
