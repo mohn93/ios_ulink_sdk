@@ -27,7 +27,7 @@ import Combine
     
     // MARK: - Constants
     
-    private static let sdkVersion = "1.1.0"
+    private static let sdkVersion = "1.1.1"
     
     // MARK: - Error Handling Utility
     
@@ -985,15 +985,42 @@ import Combine
         }
     }
     
+    // MARK: - URL Encoding
+
+    /// Character set for a value embedded inside a URL query component — e.g. the
+    /// `url` value in `/sdk/resolve?url=<value>`.
+    ///
+    /// `CharacterSet.urlQueryAllowed` permits the RFC 3986 reserved delimiters
+    /// (`&`, `=`, `+`, `?`, `;`, …) and so leaves them unencoded. When the value is
+    /// itself a URL carrying its own query string, those raw `&`/`=` characters
+    /// leak out and the server parses them as *sibling* query parameters,
+    /// truncating the `url` value at the first `&` (so only the first appended
+    /// parameter survives). Removing the reserved delimiters forces them to be
+    /// percent-encoded, so the full URL is transported as a single opaque value —
+    /// matching the Android SDK's `Uri.encode(url)` behaviour.
+    static let urlQueryValueAllowed: CharacterSet = {
+        var allowed = CharacterSet.urlQueryAllowed
+        allowed.remove(charactersIn: ":/?#[]@!$&'()*+,;=")
+        return allowed
+    }()
+
+    /// Builds the `/sdk/resolve` request URL, percent-encoding `url` so that a deep
+    /// link's own query parameters survive end-to-end. Returns `nil` only if the
+    /// value cannot be percent-encoded.
+    static func buildResolveURL(baseUrl: String, url: String) -> String? {
+        guard let encodedUrl = url.addingPercentEncoding(withAllowedCharacters: urlQueryValueAllowed) else {
+            return nil
+        }
+        return "\(baseUrl)/sdk/resolve?url=\(encodedUrl)"
+    }
+
     public func resolveLink(url: String) async throws -> ULinkResponse {
         // Ensure SDK is fully initialized before resolving links
         try ensureBootstrapCompleted()
-        
-        guard let encodedUrl = url.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else {
+
+        guard let resolveUrl = Self.buildResolveURL(baseUrl: config.baseUrl, url: url) else {
             return ULinkResponse.error(message: "Invalid URL provided", data: nil)
         }
-        
-        let resolveUrl = "\(config.baseUrl)/sdk/resolve?url=\(encodedUrl)"
         
         var headers = [
             "X-App-Key": config.apiKey,
