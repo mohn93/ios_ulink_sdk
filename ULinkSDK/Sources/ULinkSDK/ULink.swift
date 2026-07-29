@@ -410,13 +410,13 @@ import Combine
             // Bootstrap failed or didn't complete - retry
             instance.bootstrapCompleted = false
             instance.bootstrapSucceeded = false
-            try await instance.setup()
+            try await instance.setupOrMarkFailed()
             return instance
         }
         
         // Create new instance
         _instance = ULink(config: config)
-        try await _instance?.setup()
+        try await _instance?.setupOrMarkFailed()
         return _instance!
     }
     
@@ -435,7 +435,24 @@ import Combine
     
     /// Sets up the SDK with error propagation for essential operations
     /// - Throws: ULinkError for failures in essential operations based on configuration
-    private func setup() async throws {
+    /// Runs setup() and guarantees bootstrap ends in a terminal state.
+    ///
+    /// awaitBootstrap() parks callers until bootstrap reports done, and
+    /// bootstrap() throws out of setup() on a network failure without marking
+    /// itself completed. Without this, a failed cold start would park every
+    /// later deep link for the life of the process -- a silent hang, strictly
+    /// worse to diagnose than the fail-fast it replaced.
+    func setupOrMarkFailed() async throws {
+        do {
+            try await setup()
+        } catch {
+            bootstrapSucceeded = false
+            bootstrapCompleted = true
+            throw error
+        }
+    }
+
+    func setup() async throws {
         // Generate or load installation ID
         if installationId == nil {
             generateInstallationId()
@@ -619,6 +636,24 @@ import Combine
     /// Ensures bootstrap has completed successfully before allowing SDK operations.
     /// Call this at the start of any method that requires the SDK to be fully initialized.
     /// - Throws: ULinkInitializationError if bootstrap hasn't completed or failed
+    /// Suspends until bootstrap reaches a terminal state (succeeded or failed).
+    ///
+    /// A host launched by a universal link calls handleDeepLink from
+    /// application(_:continue:) moments after didFinishLaunching starts the
+    /// async initialize, so the link routinely arrives mid-bootstrap. resolveLink
+    /// requires a completed bootstrap, and handleDeepLink swallows the resulting
+    /// error into a log line -- so without this wait the launch link was dropped.
+    ///
+    /// Callers still go through ensureBootstrapCompleted afterwards, which
+    /// rejects a bootstrap that completed unsuccessfully.
+    private func awaitBootstrap() async {
+        if bootstrapCompleted { return }
+        logDebug("Waiting for bootstrap to complete before resolving")
+        while !bootstrapCompleted {
+            try? await Task.sleep(nanoseconds: 10_000_000)
+        }
+    }
+
     private func ensureBootstrapCompleted() throws {
         guard bootstrapCompleted else {
             logError("SDK method called before initialization complete")
@@ -774,6 +809,9 @@ import Combine
     /// - Throws: ULinkError if the deep link resolution fails
     public func handleDeepLinkAsync(url: URL, isDeferred: Bool = false, matchType: String? = nil) async throws {
         logDebug("Handling deep link: \(url.absoluteString) (isDeferred: \(isDeferred), matchType: \(matchType ?? "nil"))")
+
+        // A link can arrive before initialize() has finished bootstrapping.
+        await awaitBootstrap()
         
         guard var resolvedData = try await processULinkUrlThrowing(url) else {
             logDebug("URL is not a ULink or resolution returned nil")
