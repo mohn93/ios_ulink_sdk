@@ -201,6 +201,10 @@ import Combine
     private var sessionContinuation: CheckedContinuation<Void, Never>?
     private var bootstrapCompleted: Bool = false
     private var bootstrapSucceeded: Bool = false
+    /// In-flight bootstrap retry, shared by concurrent callers. Guarded by
+    /// bootstrapRetryLock because links are handled on independent Tasks.
+    private var bootstrapRetryTask: Task<Void, Never>?
+    private let bootstrapRetryLock = NSLock()
     
     // Reinstall detection
     private var _installationInfo: ULinkInstallationInfo?
@@ -654,6 +658,61 @@ import Combine
         }
     }
 
+    /// Suspends until bootstrap reaches a terminal state and, if that state is
+    /// *failed*, retries bootstrap once before returning.
+    ///
+    /// Waiting for completion alone is not enough. A bootstrap failure is
+    /// usually transient — a momentary network blip, or the first-launch
+    /// "allow network access" dialog answered a beat too late — and it leaves
+    /// bootstrap completed-but-failed. Every later link then sailed straight
+    /// past awaitBootstrap into ensureBootstrapCompleted, which rejects it, and
+    /// handleDeepLink swallows that rejection into a log line. The link was lost
+    /// for the rest of the process even though the network had recovered
+    /// seconds later.
+    private func awaitBootstrapReady() async {
+        await awaitBootstrap()
+        guard !bootstrapSucceeded else { return }
+        logInfo("Bootstrap previously failed - retrying before handling the link")
+        await retryBootstrap()
+    }
+
+    /// Runs a single bootstrap retry shared by every concurrent caller.
+    ///
+    /// Links arrive in bursts — a tap alongside a pending launch URL — and each
+    /// is handled on its own Task. Without sharing, each one would fire its own
+    /// bootstrap against a backend that just failed.
+    /// The lock lives in these two synchronous helpers rather than in
+    /// retryBootstrap itself: NSLock is unavailable from an async context and
+    /// is a hard error under the Swift 6 language mode.
+    private func retryBootstrap() async {
+        let task = claimBootstrapRetry()
+        await task.value
+        releaseBootstrapRetry(task)
+    }
+
+    private func claimBootstrapRetry() -> Task<Void, Never> {
+        bootstrapRetryLock.lock()
+        defer { bootstrapRetryLock.unlock() }
+
+        if let inFlight = bootstrapRetryTask { return inFlight }
+
+        let newTask = Task { [weak self] in
+            guard let self = self else { return }
+            self.sessionState = .idle
+            self.bootstrapSucceeded = false
+            await self.bootstrapSilent()
+        }
+        bootstrapRetryTask = newTask
+        return newTask
+    }
+
+    /// Only the owner clears it, so a retry started after this one survives.
+    private func releaseBootstrapRetry(_ task: Task<Void, Never>) {
+        bootstrapRetryLock.lock()
+        defer { bootstrapRetryLock.unlock() }
+        if bootstrapRetryTask == task { bootstrapRetryTask = nil }
+    }
+
     private func ensureBootstrapCompleted() throws {
         guard bootstrapCompleted else {
             logError("SDK method called before initialization complete")
@@ -810,8 +869,9 @@ import Combine
     public func handleDeepLinkAsync(url: URL, isDeferred: Bool = false, matchType: String? = nil) async throws {
         logDebug("Handling deep link: \(url.absoluteString) (isDeferred: \(isDeferred), matchType: \(matchType ?? "nil"))")
 
-        // A link can arrive before initialize() has finished bootstrapping.
-        await awaitBootstrap()
+        // A link can arrive before initialize() has finished bootstrapping, or
+        // after a transient bootstrap failure that is worth retrying.
+        await awaitBootstrapReady()
         
         guard var resolvedData = try await processULinkUrlThrowing(url) else {
             logDebug("URL is not a ULink or resolution returned nil")
@@ -1409,14 +1469,11 @@ import Combine
         if !bootstrapSucceeded || sessionState == .idle || sessionState == .failed {
             logInfo("App became active - retrying bootstrap (previous bootstrapSucceeded: \(bootstrapSucceeded), sessionState: \(sessionState))")
             Task {
-                // Reset state before retrying
-                sessionState = .idle
-                bootstrapSucceeded = false
-                
-                // Use silent version for lifecycle retry (errors are logged but not thrown)
-                await bootstrapSilent()
-                
-                    logDebug("Bootstrap retry completed - sessionState: \(sessionState), bootstrapSucceeded: \(bootstrapSucceeded)")
+                // Shared with the deep-link path: the pending initialUrl handled
+                // just below joins this same retry instead of racing it and
+                // resolving against the bootstrap that already failed.
+                await retryBootstrap()
+                logDebug("Bootstrap retry completed - sessionState: \(sessionState), bootstrapSucceeded: \(bootstrapSucceeded)")
             }
         }
         
