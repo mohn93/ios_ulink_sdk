@@ -26,6 +26,7 @@ private final class GatedHTTPClient: HTTPClient {
     private var _bootstrapStarted = false
     private var _released = false
     private var _failBootstrap = false
+    private var _bootstrapAttempts = 0
 
     var resolveURLs: [String] {
         lock.lock(); defer { lock.unlock() }
@@ -37,6 +38,12 @@ private final class GatedHTTPClient: HTTPClient {
         return _bootstrapStarted
     }
 
+    /// How many times /sdk/bootstrap was called — one per bootstrap attempt.
+    var bootstrapAttempts: Int {
+        lock.lock(); defer { lock.unlock() }
+        return _bootstrapAttempts
+    }
+
     func failBootstrap() {
         lock.lock(); _failBootstrap = true; lock.unlock()
     }
@@ -45,8 +52,16 @@ private final class GatedHTTPClient: HTTPClient {
         lock.lock(); _released = true; lock.unlock()
     }
 
-    private func markBootstrapStarted() {
-        lock.lock(); _bootstrapStarted = true; lock.unlock()
+    /// Simulates the network coming back: subsequent bootstrap attempts succeed.
+    func recoverBootstrap() {
+        lock.lock(); _failBootstrap = false; _released = true; lock.unlock()
+    }
+
+    private func markBootstrapStarted(_ url: String) {
+        lock.lock()
+        _bootstrapStarted = true
+        if url.hasSuffix("/sdk/bootstrap") { _bootstrapAttempts += 1 }
+        lock.unlock()
     }
 
     private func gateState() -> (released: Bool, shouldFail: Bool) {
@@ -63,7 +78,7 @@ private final class GatedHTTPClient: HTTPClient {
         body: [String: Any],
         headers: [String: String] = [:]
     ) async throws -> T {
-        markBootstrapStarted()
+        markBootstrapStarted(url)
 
         while true {
             let state = gateState()
@@ -179,6 +194,66 @@ final class ULinkBootstrapRaceTests: XCTestCase {
         XCTAssertTrue(
             reachedTerminal,
             "a link handled after a failed bootstrap must fail fast, not park forever"
+        )
+    }
+
+    /// A bootstrap failure is usually transient — a momentary network blip, or
+    /// the first-launch "allow network access" dialog answered a beat too late.
+    /// Bootstrap then sits in a completed-but-failed state, and because
+    /// awaitBootstrap only waits for *completion*, every later link sailed past
+    /// it into ensureBootstrapCompleted, which rejected it. handleDeepLink
+    /// swallows that error into a log line, so the link was lost for the rest of
+    /// the process even though the network had long since recovered.
+    func testLinkArrivingAfterTransientBootstrapFailureRetriesAndResolves() async throws {
+        let client = GatedHTTPClient()
+        let ulink = ULink.createInstance(config: makeConfig(), httpClient: client)
+
+        // Cold start during a blip: bootstrap reaches a terminal, failed state.
+        client.failBootstrap()
+        _ = try? await Task { try await ulink.setupOrMarkFailed() }.value
+        XCTAssertEqual(client.bootstrapAttempts, 1, "cold-start bootstrap should have been attempted once")
+
+        // By the time the user taps a link, the network is back.
+        client.recoverBootstrap()
+        ulink.handleDeepLink(url: link)
+
+        let resolved = await waitUntil {
+            client.resolveURLs.contains { $0.contains("links.shared.ly") }
+        }
+        XCTAssertTrue(
+            resolved,
+            "a link arriving after a transient bootstrap failure must retry bootstrap and resolve, not be dropped"
+        )
+        XCTAssertGreaterThanOrEqual(
+            client.bootstrapAttempts, 2,
+            "the failed bootstrap should have been retried before resolving"
+        )
+    }
+
+    /// Several links can land at once (a tap plus a pending launch URL). They
+    /// must share one retry rather than each firing their own bootstrap.
+    func testConcurrentLinksAfterFailedBootstrapShareASingleRetry() async throws {
+        let client = GatedHTTPClient()
+        let ulink = ULink.createInstance(config: makeConfig(), httpClient: client)
+
+        client.failBootstrap()
+        _ = try? await Task { try await ulink.setupOrMarkFailed() }.value
+        client.recoverBootstrap()
+
+        ulink.handleDeepLink(url: link)
+        ulink.handleDeepLink(url: link)
+        ulink.handleDeepLink(url: link)
+
+        let resolved = await waitUntil {
+            client.resolveURLs.contains { $0.contains("links.shared.ly") }
+        }
+        XCTAssertTrue(resolved, "links should resolve after the shared retry")
+
+        // Let any duplicate retries land before counting.
+        try await Task.sleep(nanoseconds: 300_000_000)
+        XCTAssertEqual(
+            client.bootstrapAttempts, 2,
+            "three concurrent links must trigger exactly one bootstrap retry, not three"
         )
     }
 }
