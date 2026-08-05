@@ -165,8 +165,68 @@ import Combine
         return instance
     }
     
+    /// Whether the SDK has been initialized, so callers can check instead of
+    /// risking the `shared` trap.
+    @objc public static var isInitialized: Bool {
+        _instance != nil
+    }
+
+    /**
+     Handles an incoming URL safely, whether or not the SDK is ready yet.
+
+     `onOpenURL` (and `application(_:open:options:)`) fire during a cold launch
+     *before* an async `initialize` has finished, so reaching `shared` there
+     traps and kills the process — on precisely the launch path deep links
+     exist for. A URL arriving early is buffered and replayed once
+     initialization completes, so the link is handled rather than lost.
+
+     Prefer this over `ULink.shared.handleIncomingURL(_:)` in URL handlers.
+     */
+    @discardableResult
+    @objc public static func handleIncomingURL(_ url: URL) -> Bool {
+        if let instance = _instance {
+            return instance.handleIncomingURL(url)
+        }
+        bufferPendingURL(url)
+        return true
+    }
+
     private static var _instance: ULink?
     private static var isInitializing = false
+
+    // MARK: - Pending URLs
+
+    /// URLs that arrived before initialization finished, oldest first.
+    private static var pendingIncomingURLs: [URL] = []
+    /// Guards `pendingIncomingURLs`. Taken only in synchronous helpers —
+    /// NSLock must not be held across an await (see retryBootstrap).
+    private static let pendingURLsLock = NSLock()
+
+    private static func bufferPendingURL(_ url: URL) {
+        pendingURLsLock.lock()
+        defer { pendingURLsLock.unlock() }
+        // Bounded so a launch loop cannot grow this without limit.
+        if pendingIncomingURLs.count >= 8 {
+            pendingIncomingURLs.removeFirst()
+        }
+        pendingIncomingURLs.append(url)
+    }
+
+    private static func drainPendingURLs() -> [URL] {
+        pendingURLsLock.lock()
+        defer { pendingURLsLock.unlock() }
+        let urls = pendingIncomingURLs
+        pendingIncomingURLs.removeAll()
+        return urls
+    }
+
+    /// Replays URLs that arrived before the SDK was ready.
+    private static func replayPendingURLs(on instance: ULink) {
+        for url in drainPendingURLs() {
+            instance.logDebug("Replaying URL received before initialization: \(url.absoluteString)")
+            _ = instance.handleIncomingURL(url)
+        }
+    }
     
     /// Actor for thread-safe initialization
     private actor InitializationGuard {
@@ -415,13 +475,20 @@ import Combine
             instance.bootstrapCompleted = false
             instance.bootstrapSucceeded = false
             try await instance.setupOrMarkFailed()
+            replayPendingURLs(on: instance)
             return instance
         }
         
         // Create new instance
-        _instance = ULink(config: config)
-        try await _instance?.setupOrMarkFailed()
-        return _instance!
+        let instance = ULink(config: config)
+        _instance = instance
+        // Deferred, not placed after setup: setupOrMarkFailed can throw, and a
+        // deep link that arrived during a cold launch must still be delivered
+        // when bootstrap fails — that is precisely when it would otherwise be
+        // lost, with nothing left to replay it later.
+        defer { replayPendingURLs(on: instance) }
+        try await instance.setupOrMarkFailed()
+        return instance
     }
     
     public static func createInstance(config: ULinkConfig, httpClient: HTTPClient) -> ULink {
