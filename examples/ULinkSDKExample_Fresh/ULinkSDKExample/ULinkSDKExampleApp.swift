@@ -21,8 +21,13 @@ struct ULinkSDKExampleApp: App {
                     viewModel.initializeULink()
                 }
                 .onOpenURL { url in
-                    // Handle both custom scheme and universal links
-                    ULink.shared.handleIncomingURL(url)
+                    // Handle both custom scheme and universal links.
+                    //
+                    // The static entry point, not ULink.shared: on a cold
+                    // launch this fires before initializeULink() above has
+                    // finished, and `shared` traps when the SDK is not ready
+                    // yet. The URL is buffered and replayed after init.
+                    ULink.handleIncomingURL(url)
                 }
         }
     }
