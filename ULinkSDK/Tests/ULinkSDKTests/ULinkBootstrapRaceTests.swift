@@ -333,4 +333,15 @@ final class ULinkBootstrapRaceTests: XCTestCase {
         let response = try await ulink.resolveLink(url: link.absoluteString)
         XCTAssertTrue(response.success)
     }
+
+    func testRetryAfterHeaderIsParsedCaseInsensitively() {
+        let url = URL(string: "https://api.test.com/sdk/bootstrap")!
+        let lower = HTTPURLResponse(url: url, statusCode: 503, httpVersion: nil, headerFields: ["retry-after": "10"])!
+        let missing = HTTPURLResponse(url: url, statusCode: 503, httpVersion: nil, headerFields: [:])!
+        let date = HTTPURLResponse(url: url, statusCode: 503, httpVersion: nil,
+                                   headerFields: ["Retry-After": "Wed, 21 Oct 2026 07:28:00 GMT"])!
+        XCTAssertEqual(HTTPClient.retryAfterSeconds(lower), 10)
+        XCTAssertNil(HTTPClient.retryAfterSeconds(missing))
+        XCTAssertNil(HTTPClient.retryAfterSeconds(date), "the HTTP-date form is not used by the API and is ignored")
+    }
 }

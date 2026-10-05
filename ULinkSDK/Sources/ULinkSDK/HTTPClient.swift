@@ -278,7 +278,12 @@ public class HTTPClient {
     /// Parses `Retry-After` when it is a number of seconds. The HTTP-date form is
     /// not used by the ULink API and is ignored.
     static func retryAfterSeconds(_ response: HTTPURLResponse) -> TimeInterval? {
-        guard let raw = response.value(forHTTPHeaderField: "Retry-After"),
+        // allHeaderFields rather than value(forHTTPHeaderField:), which needs
+        // macOS 10.15 and breaks the SwiftPM test build on older targets.
+        let header = response.allHeaderFields.first {
+            ($0.key as? String)?.caseInsensitiveCompare("Retry-After") == .orderedSame
+        }
+        guard let raw = header?.value as? String,
               let seconds = TimeInterval(raw.trimmingCharacters(in: .whitespaces)),
               seconds >= 0 else { return nil }
         return seconds
