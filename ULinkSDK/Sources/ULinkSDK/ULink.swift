@@ -265,6 +265,20 @@ import Combine
     /// bootstrapRetryLock because links are handled on independent Tasks.
     private var bootstrapRetryTask: Task<Void, Never>?
     private let bootstrapRetryLock = NSLock()
+    /// Set once setup() starts, so awaitBootstrap() never parks a caller on an
+    /// instance whose bootstrap was never started. Guarded by bootstrapRetryLock.
+    private var setupStarted = false
+    /// Earliest time the next bootstrap retry may be sent, from the server's
+    /// Retry-After plus jitter. Guarded by bootstrapRetryLock.
+    private var bootstrapRetryNotBefore: Date?
+    /// Whether the automatic deferred-link check has been scheduled in this
+    /// process. Guarded by bootstrapRetryLock.
+    private var autoDeferredCheckScheduled = false
+    private var lifecycleObserversRegistered = false
+
+    /// A Retry-After longer than this is not waited out by a link or API call;
+    /// the call fails fast and a later foreground or call retries instead.
+    static let maxBootstrapRetryWait: TimeInterval = 30
     
     // Reinstall detection
     private var _installationInfo: ULinkInstallationInfo?
@@ -517,13 +531,25 @@ import Combine
         do {
             try await setup()
         } catch {
-            bootstrapSucceeded = false
-            bootstrapCompleted = true
+            // Only a failure before bootstrap finished means bootstrap failed. A
+            // later failure (resolving the initial URL) must not mark a successful
+            // bootstrap as failed, or every later call would bootstrap again.
+            if !bootstrapCompleted {
+                bootstrapSucceeded = false
+                bootstrapCompleted = true
+            }
+            recordBootstrapFailure(error)
             throw error
         }
     }
 
     func setup() async throws {
+        markSetupStarted()
+
+        // Register for app lifecycle notifications first, so the foreground
+        // retry exists even when a later setup step throws.
+        registerForLifecycleNotifications()
+
         // Generate or load installation ID
         if installationId == nil {
             generateInstallationId()
@@ -545,11 +571,14 @@ import Combine
         logDebug("Installation Token: \(installationToken != nil ? "[LOADED]" : "[NOT FOUND]")")
         logDebug("SDK Version: \(Self.sdkVersion)")
         
-        // Register for app lifecycle notifications
-        registerForLifecycleNotifications()
-        
         // Bootstrap (track installation and start session) - always essential
         try await bootstrap()
+
+        // Check for deferred links after bootstrap completes (if enabled in config).
+        // Runs in a background Task to match Android, so listeners can be set up
+        // before the deferred link is processed. Scheduled before the initial URL
+        // is handled so a failure there does not skip it.
+        scheduleAutoDeferredCheckIfNeeded()
         
         // Handle initial URL if automatic deep link integration is enabled
         if config.enableDeepLinkIntegration {
@@ -560,20 +589,79 @@ import Combine
         } else if initialUrl != nil {
             logDebug("Deep link integration disabled - initial URL will be ignored until handled manually")
         }
-        
-        // Check for deferred links after bootstrap completes (if enabled in config)
-        // Launch in background Task (don't await) to match Android behavior
-        // This ensures listeners can be set up before deferred link is processed
-        if config.autoCheckDeferredLink {
-            Task {
-                do {
-            try await checkDeferredLinkAsync()
-                } catch {
-                    logError("Deferred link check failed", error: error)
-                    // Don't throw - deferred link check is not critical for initialization
-                }
+    }
+
+    /// Starts the automatic deferred-link check once per process. Called after
+    /// the initial bootstrap and after a successful retry, so a first launch whose
+    /// bootstrap failed (no network yet, a 503) still gets its deferred link.
+    private func scheduleAutoDeferredCheckIfNeeded() {
+        guard config.autoCheckDeferredLink, bootstrapSucceeded else { return }
+        bootstrapRetryLock.lock()
+        let alreadyScheduled = autoDeferredCheckScheduled
+        autoDeferredCheckScheduled = true
+        bootstrapRetryLock.unlock()
+        guard !alreadyScheduled else { return }
+
+        Task {
+            do {
+                try await checkDeferredLinkAsync()
+            } catch {
+                // Not critical for initialization. Allow a later successful
+                // bootstrap to try again in this process.
+                logError("Deferred link check failed", error: error)
+                self.resetAutoDeferredCheckScheduled()
             }
         }
+    }
+
+    private func resetAutoDeferredCheckScheduled() {
+        bootstrapRetryLock.lock()
+        autoDeferredCheckScheduled = false
+        bootstrapRetryLock.unlock()
+    }
+
+    private func markSetupStarted() {
+        bootstrapRetryLock.lock()
+        setupStarted = true
+        bootstrapRetryLock.unlock()
+    }
+
+    private func hasSetupStarted() -> Bool {
+        bootstrapRetryLock.lock()
+        defer { bootstrapRetryLock.unlock() }
+        return setupStarted
+    }
+
+    /// Remembers the server's Retry-After so retries back off instead of
+    /// hammering a backend that is shedding load. Adds up to 50% jitter so
+    /// clients that failed together do not retry together.
+    private func recordBootstrapFailure(_ error: Error) {
+        guard let retryAfter = Self.retryAfter(from: error), retryAfter > 0 else { return }
+        let delay = retryAfter + Double.random(in: 0...(retryAfter * 0.5))
+        bootstrapRetryLock.lock()
+        bootstrapRetryNotBefore = Date().addingTimeInterval(delay)
+        bootstrapRetryLock.unlock()
+        logInfo("Bootstrap rejected with Retry-After \(Int(retryAfter))s - next retry in \(String(format: "%.1f", delay))s")
+    }
+
+    static func retryAfter(from error: Error) -> TimeInterval? {
+        if let httpError = error as? ULinkHTTPError { return httpError.retryAfter }
+        return nil
+    }
+
+    private func clearBootstrapRetryBackoff() {
+        bootstrapRetryLock.lock()
+        bootstrapRetryNotBefore = nil
+        bootstrapRetryLock.unlock()
+    }
+
+    /// Seconds until a retry is allowed, or nil when one may go now.
+    private func remainingBootstrapRetryWait() -> TimeInterval? {
+        bootstrapRetryLock.lock()
+        defer { bootstrapRetryLock.unlock() }
+        guard let notBefore = bootstrapRetryNotBefore else { return nil }
+        let remaining = notBefore.timeIntervalSinceNow
+        return remaining > 0 ? remaining : nil
     }
     
     // MARK: - Installation Management
@@ -686,6 +774,7 @@ import Combine
             }
             
             logInfo("Bootstrap completed successfully")
+            clearBootstrapRetryBackoff()
             bootstrapSucceeded = true
         bootstrapCompleted = true
         logDebug("Bootstrap completed - sessionState: \(sessionState), bootstrapSucceeded: \(bootstrapSucceeded)")
@@ -699,6 +788,7 @@ import Combine
             logError("Bootstrap error (silent)", error: error)
             bootstrapSucceeded = false
             bootstrapCompleted = true
+            recordBootstrapFailure(error)
         }
     }
     
@@ -719,6 +809,7 @@ import Combine
     /// rejects a bootstrap that completed unsuccessfully.
     private func awaitBootstrap() async {
         if bootstrapCompleted { return }
+        guard hasSetupStarted() else { return }
         logDebug("Waiting for bootstrap to complete before resolving")
         while !bootstrapCompleted {
             try? await Task.sleep(nanoseconds: 10_000_000)
@@ -737,6 +828,9 @@ import Combine
     /// for the rest of the process even though the network had recovered
     /// seconds later.
     private func awaitBootstrapReady() async {
+        // Nothing to wait for or retry on an instance whose setup never ran;
+        // ensureBootstrapCompleted() then rejects the call.
+        guard hasSetupStarted() else { return }
         await awaitBootstrap()
         guard !bootstrapSucceeded else { return }
         logInfo("Bootstrap previously failed - retrying before handling the link")
@@ -765,9 +859,17 @@ import Combine
 
         let newTask = Task { [weak self] in
             guard let self = self else { return }
+            if let wait = self.remainingBootstrapRetryWait() {
+                guard wait <= Self.maxBootstrapRetryWait else {
+                    self.logInfo("Bootstrap retry deferred for \(Int(wait))s (Retry-After)")
+                    return
+                }
+                try? await Task.sleep(nanoseconds: UInt64(wait * 1_000_000_000))
+            }
             self.sessionState = .idle
             self.bootstrapSucceeded = false
             await self.bootstrapSilent()
+            self.scheduleAutoDeferredCheckIfNeeded()
         }
         bootstrapRetryTask = newTask
         return newTask
@@ -778,6 +880,15 @@ import Combine
         bootstrapRetryLock.lock()
         defer { bootstrapRetryLock.unlock() }
         if bootstrapRetryTask == task { bootstrapRetryTask = nil }
+    }
+
+    /// Waits for an in-flight bootstrap, retries a failed one, then requires
+    /// success. Every API call goes through this, so a call made while the SDK is
+    /// degraded recovers once the backend does instead of failing until the next
+    /// foreground.
+    private func ensureBootstrapReady() async throws {
+        await awaitBootstrapReady()
+        try ensureBootstrapCompleted()
     }
 
     private func ensureBootstrapCompleted() throws {
@@ -937,9 +1048,8 @@ import Combine
         logDebug("Handling deep link: \(url.absoluteString) (isDeferred: \(isDeferred), matchType: \(matchType ?? "nil"))")
 
         // A link can arrive before initialize() has finished bootstrapping, or
-        // after a transient bootstrap failure that is worth retrying.
-        await awaitBootstrapReady()
-        
+        // after a transient bootstrap failure that is worth retrying. resolveLink
+        // (via processULinkUrlThrowing) waits for and retries bootstrap.
         guard var resolvedData = try await processULinkUrlThrowing(url) else {
             logDebug("URL is not a ULink or resolution returned nil")
             return
@@ -1056,7 +1166,7 @@ import Combine
     
     public func createLink(parameters: ULinkParameters) async throws -> ULinkResponse {
         // Ensure SDK is fully initialized before creating links
-        try ensureBootstrapCompleted()
+        try await ensureBootstrapReady()
         
         let body = parameters.toJson()
         
@@ -1181,7 +1291,7 @@ import Combine
 
     public func resolveLink(url: String) async throws -> ULinkResponse {
         // Ensure SDK is fully initialized before resolving links
-        try ensureBootstrapCompleted()
+        try await ensureBootstrapReady()
 
         guard let resolveUrl = Self.buildResolveURL(baseUrl: config.baseUrl, url: url) else {
             return ULinkResponse.error(message: "Invalid URL provided", data: nil)
@@ -1493,7 +1603,11 @@ import Combine
     
     // MARK: - Lifecycle Management
     
+    /// Idempotent: initialize() re-runs setup() after a failed bootstrap, and
+    /// each extra registration would add another set of observers.
     private func registerForLifecycleNotifications() {
+        guard !lifecycleObserversRegistered else { return }
+        lifecycleObserversRegistered = true
         #if canImport(UIKit)
         NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)
             .sink { [weak self] _ in
@@ -1660,8 +1774,18 @@ import Combine
     /// - Throws: ULinkError if loading fails and persistLastLinkData is enabled
     private func loadLastLinkDataThrowing() throws {
         guard let jsonData = userDefaults.data(forKey: Self.keyLastLinkData) else { return }
-        
-            let data = try JSONDecoder().decode(ULinkResolvedData.self, from: jsonData)
+
+        // Unreadable data (for example written by an older SDK version) is
+        // discarded. Throwing here would fail setup() on every launch, because
+        // nothing else ever clears it.
+        let data: ULinkResolvedData
+        do {
+            data = try JSONDecoder().decode(ULinkResolvedData.self, from: jsonData)
+        } catch {
+            logError("Discarding unreadable persisted last link data", error: error)
+            clearPersistedLastLink()
+            return
+        }
             
             // Check TTL if configured
             if let ttl = config.lastLinkTimeToLive {
@@ -1691,6 +1815,7 @@ import Combine
     
     @objc public func dispose() {
         cancellables.removeAll()
+        lifecycleObserversRegistered = false
         Task {
             _ = await endSession()
         }
@@ -1710,7 +1835,7 @@ import Combine
     /// - Throws: ULinkError if the deferred link check fails when autoCheckDeferredLink is enabled
     public func checkDeferredLinkAsync() async throws {
         // Ensure SDK is fully initialized before checking deferred links
-        try ensureBootstrapCompleted()
+        try await ensureBootstrapReady()
         
         #if canImport(UIKit)
         let defaults = UserDefaults.standard
