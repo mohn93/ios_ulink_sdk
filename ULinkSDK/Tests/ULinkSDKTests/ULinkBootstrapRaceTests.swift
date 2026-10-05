@@ -27,6 +27,7 @@ private final class GatedHTTPClient: HTTPClient {
     private var _released = false
     private var _failBootstrap = false
     private var _bootstrapAttempts = 0
+    private var _failError: Error = ULinkError.invalidURL
 
     var resolveURLs: [String] {
         lock.lock(); defer { lock.unlock() }
@@ -44,8 +45,8 @@ private final class GatedHTTPClient: HTTPClient {
         return _bootstrapAttempts
     }
 
-    func failBootstrap() {
-        lock.lock(); _failBootstrap = true; lock.unlock()
+    func failBootstrap(with error: Error = ULinkError.invalidURL) {
+        lock.lock(); _failBootstrap = true; _failError = error; lock.unlock()
     }
 
     func releaseBootstrap() {
@@ -64,9 +65,9 @@ private final class GatedHTTPClient: HTTPClient {
         lock.unlock()
     }
 
-    private func gateState() -> (released: Bool, shouldFail: Bool) {
+    private func gateState() -> (released: Bool, shouldFail: Bool, error: Error) {
         lock.lock(); defer { lock.unlock() }
-        return (_released, _failBootstrap)
+        return (_released, _failBootstrap, _failError)
     }
 
     private func recordResolve(_ url: String) {
@@ -83,7 +84,7 @@ private final class GatedHTTPClient: HTTPClient {
         while true {
             let state = gateState()
             if state.released { break }
-            if state.shouldFail { throw ULinkError.invalidURL }
+            if state.shouldFail { throw state.error }
             try await Task.sleep(nanoseconds: 5_000_000)
         }
 
@@ -110,13 +111,13 @@ final class ULinkBootstrapRaceTests: XCTestCase {
 
     private let link = URL(string: "https://links.shared.ly/abc")!
 
-    private func makeConfig() -> ULinkConfig {
+    private func makeConfig(persistLastLinkData: Bool = false) -> ULinkConfig {
         ULinkConfig(
             apiKey: "test-key",
             baseUrl: "https://api.test.com",
             debug: false,
             enableDeepLinkIntegration: true,
-            persistLastLinkData: false,
+            persistLastLinkData: persistLastLinkData,
             autoCheckDeferredLink: false
         )
     }
@@ -255,5 +256,81 @@ final class ULinkBootstrapRaceTests: XCTestCase {
             client.bootstrapAttempts, 2,
             "three concurrent links must trigger exactly one bootstrap retry, not three"
         )
+    }
+
+    /// The plugins resolve links through resolveLink/processULinkUrl directly,
+    /// not handleDeepLinkAsync. Those used to reject outright after a failed
+    /// bootstrap, so a degraded SDK lost every link until the next foreground.
+    func testResolveLinkAfterFailedBootstrapRetriesAndSucceeds() async throws {
+        let client = GatedHTTPClient()
+        let ulink = ULink.createInstance(config: makeConfig(), httpClient: client)
+
+        client.failBootstrap()
+        _ = try? await Task { try await ulink.setupOrMarkFailed() }.value
+        client.recoverBootstrap()
+
+        let response = try await ulink.resolveLink(url: link.absoluteString)
+
+        XCTAssertTrue(response.success, "resolveLink must retry the failed bootstrap and then resolve")
+        XCTAssertEqual(client.bootstrapAttempts, 2, "exactly one bootstrap retry before resolving")
+    }
+
+    /// A 503 from load shedding carries Retry-After. Retrying sooner only adds
+    /// load to a backend that is already shedding it.
+    func testBootstrapRetryWaitsForRetryAfter() async throws {
+        let client = GatedHTTPClient()
+        let ulink = ULink.createInstance(config: makeConfig(), httpClient: client)
+
+        client.failBootstrap(with: ULinkHTTPError(statusCode: 503, retryAfter: 0.5))
+        _ = try? await Task { try await ulink.setupOrMarkFailed() }.value
+        client.recoverBootstrap()
+
+        let start = Date()
+        let response = try await ulink.resolveLink(url: link.absoluteString)
+        let elapsed = Date().timeIntervalSince(start)
+
+        XCTAssertTrue(response.success)
+        XCTAssertGreaterThanOrEqual(elapsed, 0.5, "the retry must not be sent before Retry-After elapses")
+        XCTAssertLessThan(elapsed, 2.0, "jitter is bounded to 50% of Retry-After")
+        XCTAssertEqual(client.bootstrapAttempts, 2)
+    }
+
+    /// A long Retry-After is not waited out inside a single call: the call
+    /// fails fast and leaves the retry to a later call or foreground.
+    func testLongRetryAfterFailsFastWithoutRetrying() async throws {
+        let client = GatedHTTPClient()
+        let ulink = ULink.createInstance(config: makeConfig(), httpClient: client)
+
+        client.failBootstrap(with: ULinkHTTPError(statusCode: 503, retryAfter: 600))
+        _ = try? await Task { try await ulink.setupOrMarkFailed() }.value
+        client.recoverBootstrap()
+
+        let start = Date()
+        do {
+            _ = try await ulink.resolveLink(url: link.absoluteString)
+            XCTFail("resolveLink must fail while the server's Retry-After is pending")
+        } catch {}
+
+        XCTAssertLessThan(Date().timeIntervalSince(start), 2.0, "must fail fast, not wait 10 minutes")
+        XCTAssertEqual(client.bootstrapAttempts, 1, "no retry may be sent before Retry-After")
+    }
+
+    /// Unreadable persisted last-link data used to throw out of setup() before
+    /// bootstrap, on every launch, because nothing cleared it.
+    func testUnreadablePersistedLastLinkDataDoesNotFailSetup() async throws {
+        let key = "last_link_data"
+        UserDefaults.standard.set(Data("not json".utf8), forKey: key)
+        defer { UserDefaults.standard.removeObject(forKey: key) }
+
+        let client = GatedHTTPClient()
+        client.releaseBootstrap()
+        let ulink = ULink.createInstance(config: makeConfig(persistLastLinkData: true), httpClient: client)
+
+        try await ulink.setupOrMarkFailed()
+
+        XCTAssertEqual(client.bootstrapAttempts, 1, "bootstrap must still run")
+        XCTAssertNil(UserDefaults.standard.data(forKey: key), "the unreadable data must be discarded")
+        let response = try await ulink.resolveLink(url: link.absoluteString)
+        XCTAssertTrue(response.success)
     }
 }

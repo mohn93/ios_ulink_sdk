@@ -16,12 +16,16 @@ public struct ULinkHTTPError: Error {
     public let responseBody: String?
     public let responseJSON: [String: Any]?
     public let originalError: Error?
+    /// Seconds from the response's `Retry-After` header, when the server sent one
+    /// as a number of seconds (for example on a 503 under load shedding).
+    public let retryAfter: TimeInterval?
     
-    public init(statusCode: Int, responseBody: String? = nil, responseJSON: [String: Any]? = nil, originalError: Error? = nil) {
+    public init(statusCode: Int, responseBody: String? = nil, responseJSON: [String: Any]? = nil, originalError: Error? = nil, retryAfter: TimeInterval? = nil) {
         self.statusCode = statusCode
         self.responseBody = responseBody
         self.responseJSON = responseJSON
         self.originalError = originalError
+        self.retryAfter = retryAfter
     }
     
     public var localizedDescription: String {

@@ -96,7 +96,11 @@ public class HTTPClient {
                         print("[ULink HTTPClient] Error Response: \(responseString)")
                     }
                 }
-                throw ULinkHTTPError(statusCode: httpResponse.statusCode, responseBody: String(data: data, encoding: .utf8))
+                throw ULinkHTTPError(
+                    statusCode: httpResponse.statusCode,
+                    responseBody: String(data: data, encoding: .utf8),
+                    retryAfter: Self.retryAfterSeconds(httpResponse)
+                )
             }
             
             do {
@@ -271,6 +275,15 @@ public class HTTPClient {
     
     // MARK: - Private Methods
     
+    /// Parses `Retry-After` when it is a number of seconds. The HTTP-date form is
+    /// not used by the ULink API and is ignored.
+    static func retryAfterSeconds(_ response: HTTPURLResponse) -> TimeInterval? {
+        guard let raw = response.value(forHTTPHeaderField: "Retry-After"),
+              let seconds = TimeInterval(raw.trimmingCharacters(in: .whitespaces)),
+              seconds >= 0 else { return nil }
+        return seconds
+    }
+
     private func performRequest(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
         do {
             if debug {
