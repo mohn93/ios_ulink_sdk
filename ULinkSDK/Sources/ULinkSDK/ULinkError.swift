@@ -11,7 +11,7 @@ import Foundation
 /**
  * Detailed HTTP error information
  */
-public struct ULinkHTTPError: Error {
+public struct ULinkHTTPError: Error, LocalizedError {
     public let statusCode: Int
     public let responseBody: String?
     public let responseJSON: [String: Any]?
@@ -28,10 +28,31 @@ public struct ULinkHTTPError: Error {
         self.retryAfter = retryAfter
     }
     
+    /// The server's own explanation, when the body is ULink's JSON error shape
+    /// (`detail` from problem+json, else `message`), so callers do not have to
+    /// dig it out of the raw body.
+    public var serverMessage: String? {
+        let json = responseJSON ?? responseBody
+            .flatMap { $0.data(using: .utf8) }
+            .flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
+        if let detail = json?["detail"] as? String, !detail.isEmpty { return detail }
+        if let message = json?["message"] as? String, !message.isEmpty { return message }
+        return nil
+    }
+
+    /// `LocalizedError` conformance: without it, `error.localizedDescription` on
+    /// an `any Error` (what wrappers forward to Flutter and React Native) was the
+    /// generic "The operation couldn't be completed. (ULinkHTTPError error 1.)".
+    public var errorDescription: String? {
+        localizedDescription
+    }
+
     public var localizedDescription: String {
         var description = "HTTP error occurred (status: \(statusCode))"
-        if let responseBody = responseBody, !responseBody.isEmpty {
-            description += ". Response: \(responseBody)"
+        if let serverMessage = serverMessage {
+            description += ": \(serverMessage)"
+        } else if let responseBody = responseBody, !responseBody.isEmpty {
+            description += ". Response: \(responseBody.prefix(300))"
         }
         return description
     }
