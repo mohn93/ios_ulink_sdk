@@ -274,6 +274,9 @@ import Combine
     /// Whether the automatic deferred-link check has been scheduled in this
     /// process. Guarded by bootstrapRetryLock.
     private var autoDeferredCheckScheduled = false
+    /// Why the most recent bootstrap failed, for the error API calls throw
+    /// while the SDK is degraded. Guarded by bootstrapRetryLock.
+    private var lastBootstrapFailure: (statusCode: Int, message: String)?
     private var lifecycleObserversRegistered = false
 
     /// A Retry-After longer than this is not waited out by a link or API call;
@@ -636,12 +639,31 @@ import Combine
     /// hammering a backend that is shedding load. Adds up to 50% jitter so
     /// clients that failed together do not retry together.
     private func recordBootstrapFailure(_ error: Error) {
+        // setupOrMarkFailed also lands here when a step after a successful
+        // bootstrap failed; that is not a bootstrap failure.
+        if !bootstrapSucceeded {
+            let failure = Self.describeBootstrapFailure(error)
+            bootstrapRetryLock.lock()
+            lastBootstrapFailure = failure
+            bootstrapRetryLock.unlock()
+        }
         guard let retryAfter = Self.retryAfter(from: error), retryAfter > 0 else { return }
         let delay = retryAfter + Double.random(in: 0...(retryAfter * 0.5))
         bootstrapRetryLock.lock()
         bootstrapRetryNotBefore = Date().addingTimeInterval(delay)
         bootstrapRetryLock.unlock()
         logInfo("Bootstrap rejected with Retry-After \(Int(retryAfter))s - next retry in \(String(format: "%.1f", delay))s")
+    }
+
+    static func describeBootstrapFailure(_ error: Error) -> (statusCode: Int, message: String) {
+        switch error {
+        case let httpError as ULinkHTTPError:
+            return (httpError.statusCode, httpError.localizedDescription)
+        case ULinkInitializationError.bootstrapFailed(let statusCode, let message):
+            return (statusCode, message)
+        default:
+            return (0, error.localizedDescription)
+        }
     }
 
     static func retryAfter(from error: Error) -> TimeInterval? {
@@ -652,6 +674,7 @@ import Combine
     private func clearBootstrapRetryBackoff() {
         bootstrapRetryLock.lock()
         bootstrapRetryNotBefore = nil
+        lastBootstrapFailure = nil
         bootstrapRetryLock.unlock()
     }
 
@@ -902,9 +925,13 @@ import Combine
         
         guard bootstrapSucceeded else {
             logError("SDK method called after initialization failed")
+            bootstrapRetryLock.lock()
+            let failure = lastBootstrapFailure
+            bootstrapRetryLock.unlock()
+            let cause = failure.map { " Last bootstrap error: \($0.message)." } ?? ""
             throw ULinkInitializationError.bootstrapFailed(
-                statusCode: 0,
-                message: "SDK initialization failed. Check the error from initialize() method and retry initialization."
+                statusCode: failure?.statusCode ?? 0,
+                message: "SDK initialization failed.\(cause) The SDK retries on the next call or foreground."
             )
         }
     }

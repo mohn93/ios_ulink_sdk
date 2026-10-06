@@ -344,4 +344,57 @@ final class ULinkBootstrapRaceTests: XCTestCase {
         XCTAssertNil(HTTPClient.retryAfterSeconds(missing))
         XCTAssertNil(HTTPClient.retryAfterSeconds(date), "the HTTP-date form is not used by the API and is ignored")
     }
+
+    /// Wrappers forward `error.localizedDescription` from an `any Error`. Without
+    /// LocalizedError that was "The operation couldn't be completed.
+    /// (ULinkSDK.ULinkHTTPError error 1.)", hiding the status and the reason.
+    func testHTTPErrorDescribesStatusAndServerDetailThroughAnyError() {
+        let error: Error = ULinkHTTPError(
+            statusCode: 403,
+            responseBody: #"{"type":"about:blank","status":403,"detail":"Free plan MAU limit reached (10000/10000)."}"#
+        )
+
+        XCTAssertEqual(
+            error.localizedDescription,
+            "HTTP error occurred (status: 403): Free plan MAU limit reached (10000/10000)."
+        )
+        XCTAssertEqual((error as NSError).localizedDescription, error.localizedDescription)
+    }
+
+    func testHTTPErrorFallsBackToTruncatedRawBody() {
+        let error: Error = ULinkHTTPError(statusCode: 502, responseBody: String(repeating: "x", count: 1000))
+
+        XCTAssertTrue(error.localizedDescription.hasPrefix("HTTP error occurred (status: 502). Response: xxx"))
+        XCTAssertLessThan(error.localizedDescription.count, 400)
+    }
+
+    /// While degraded, API calls used to report "Bootstrap failed (status: 0)"
+    /// whatever the server had said.
+    func testCallsWhileDegradedReportTheLastBootstrapStatus() async throws {
+        let client = GatedHTTPClient()
+        let ulink = ULink.createInstance(config: makeConfig(), httpClient: client)
+
+        client.failBootstrap(with: ULinkHTTPError(statusCode: 401, responseBody: #"{"detail":"Invalid API key"}"#))
+        _ = try? await Task { try await ulink.setupOrMarkFailed() }.value
+
+        do {
+            _ = try await ulink.resolveLink(url: link.absoluteString)
+            XCTFail("resolveLink must fail while bootstrap keeps failing")
+        } catch ULinkInitializationError.bootstrapFailed(let statusCode, let message) {
+            XCTAssertEqual(statusCode, 401)
+            XCTAssertTrue(message.contains("Invalid API key"), message)
+        }
+    }
+
+    func testRecoveredBootstrapClearsTheRecordedFailure() async throws {
+        let client = GatedHTTPClient()
+        let ulink = ULink.createInstance(config: makeConfig(), httpClient: client)
+
+        client.failBootstrap(with: ULinkHTTPError(statusCode: 503))
+        _ = try? await Task { try await ulink.setupOrMarkFailed() }.value
+        client.recoverBootstrap()
+
+        let response = try await ulink.resolveLink(url: link.absoluteString)
+        XCTAssertTrue(response.success)
+    }
 }
