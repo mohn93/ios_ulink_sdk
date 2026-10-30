@@ -1,6 +1,8 @@
-# ULink iOS SDK
+# Ulinkly iOS SDK
 
-The ULink iOS SDK provides a comprehensive solution for creating, managing, and handling deep links in iOS applications.
+The official iOS SDK for [Ulinkly](https://ulink.ly), a deep linking platform and Firebase Dynamic Links replacement. It creates, manages and handles Universal Links and deferred deep links in iOS apps.
+
+[iOS (Swift) deep linking guide](https://ulink.ly/framework/ios-swift) | [Docs](https://docs.ulink.ly/getting-started/ios) | [Migrating from Firebase Dynamic Links](https://ulink.ly/migrate/firebase-dynamic-links)
 
 ## ULink SDKs
 

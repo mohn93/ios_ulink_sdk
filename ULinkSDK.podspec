@@ -1,7 +1,7 @@
 Pod::Spec.new do |spec|
   spec.name         = "ULinkSDK"
   spec.version      = "1.2.4"
-  spec.summary      = "ULink iOS SDK for creating and managing deep links"
+  spec.summary      = "Ulinkly iOS SDK for Universal Links and deferred deep linking"
   spec.description  = <<-DESC
                       ULink iOS SDK provides a comprehensive solution for creating, managing, and handling deep links in iOS applications.
                       Features include:
@@ -13,7 +13,7 @@ Pod::Spec.new do |spec|
                       - Customizable configuration options
                       DESC
 
-  spec.homepage     = "https://github.com/mohn93/ios_ulink_sdk"
+  spec.homepage     = "https://ulink.ly/framework/ios-swift"
   spec.license      = { :type => "MIT", :file => "LICENSE" }
   spec.author       = { "ULink" => "support@ulink.ly" }
   spec.source       = { :git => 'https://github.com/mohn93/ios_ulink_sdk.git', :tag => "v#{spec.version}" }
