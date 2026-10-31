@@ -277,6 +277,8 @@ For universal links, add associated domains to your app's entitlements:
 </array>
 ```
 
+To check that your domain serves a valid `apple-app-site-association` file and that Apple's CDN has the current copy, use the free [AASA validator](https://ulink.ly/tools/apple-app-site-association-validator). To check a link end to end, use the [deep link tester](https://ulink.ly/tools/deep-link-tester).
+
 ## Session Management
 
 The SDK automatically manages sessions based on app lifecycle:
