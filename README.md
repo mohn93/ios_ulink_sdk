@@ -80,7 +80,11 @@ Or add it through Xcode:
 In your `AppDelegate.swift`:
 
 ```swift
+import Combine
 import ULinkSDK
+
+// In your AppDelegate class: keeps the stream subscriptions alive
+private var cancellables = Set<AnyCancellable>()
 
 func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
 
@@ -114,7 +118,7 @@ Add URL handling in your `AppDelegate.swift`:
 
 ```swift
 func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey : Any] = [:]) -> Bool {
-    return ULink.shared.handleIncomingURL(url)
+    return ULink.handleIncomingURL(url)
 }
 
 func application(_ application: UIApplication, continue userActivity: NSUserActivity, restorationHandler: @escaping ([UIUserActivityRestoring]?) -> Void) -> Bool {
@@ -122,7 +126,7 @@ func application(_ application: UIApplication, continue userActivity: NSUserActi
           let url = userActivity.webpageURL else {
         return false
     }
-    return ULink.shared.handleIncomingURL(url)
+    return ULink.handleIncomingURL(url)
 }
 ```
 
@@ -261,7 +265,6 @@ Add URL schemes to your app's `Info.plist`:
         <key>CFBundleURLSchemes</key>
         <array>
             <string>yourapp</string>
-            <string>ulink</string>
         </array>
     </dict>
 </array>
@@ -275,7 +278,6 @@ For universal links, add associated domains to your app's entitlements:
 <key>com.apple.developer.associated-domains</key>
 <array>
     <string>applinks:yourdomain.com</string>
-    <string>applinks:*.yourdomain.com</string>
 </array>
 ```
 
